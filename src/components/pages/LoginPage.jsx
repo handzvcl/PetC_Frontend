@@ -3,6 +3,9 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import { GoogleLogin } from "@react-oauth/google";
 
+// Import thư viện jwt-decode
+import { jwtDecode } from "jwt-decode"; 
+
 function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,42 +33,38 @@ function LoginPage() {
     if (response.ok) {
       try {
         const result = await response.json();
-
-        /**
-         * Backend của bạn có thể trả 2 kiểu:
-         * 1) { success: true, data: {...} }
-         * 2) { username, roles, id, token }
-         *
-         * Bạn đang test Postman và thấy kiểu (2).
-         * Nên mình handle cả 2 để code chạy ổn.
-         */
-
         const data = result?.data ?? result;
 
-        if (data) {
-          // Lưu vào Context
-          // (Tùy AuthContext của bạn dùng field gì, bạn chỉnh lại cho khớp)
-          login({
-            userId: data.userId ?? data.id,
-            username: data.userName ?? data.username,
-            email: data.email,
-            role:
-              data.role ??
-              (Array.isArray(data.roles) ? data.roles?.[0] : undefined),
-            token: data.token, // nếu bạn có lưu token ở context/localStorage thì dùng
-          });
+        if (data && data.token) {
+          try {
+            const decoded = jwtDecode(data.token);
+            console.log("Dữ liệu Token sau khi giải mã:", decoded);
 
-          // Redirect theo role (nếu backend trả roles)
-          const role =
-            data.role ?? (Array.isArray(data.roles) ? data.roles?.[0] : null);
+            let tokenRole = decoded?.role || decoded?.roles || decoded?.['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
 
-          if (role === "Admin" || role === "ADMIN") {
-            navigate("/admin");
-          } else {
-            navigate(from, { replace: true });
+            if (Array.isArray(tokenRole)) {
+              tokenRole = tokenRole[0];
+            }
+
+            login({
+              userId: decoded?.sub || data.userId || data.id, 
+              username: decoded?.preferred_username || data.userName || data.username,
+              email: decoded?.email || data.email,
+              role: tokenRole,
+              token: data.token,
+            });
+
+            if (tokenRole === "Admin" || tokenRole === "ADMIN") {
+              navigate("/admin");
+            } else {
+              navigate(from, { replace: true });
+            }
+          } catch (decodeError) {
+            console.error("Lỗi giải mã token:", decodeError);
+            alert("Token không hợp lệ!");
           }
         } else {
-          alert(result?.message || "Đăng nhập thất bại");
+          alert(result?.message || "Đăng nhập thất bại: Không nhận được token");
         }
       } catch (error) {
         console.error("Parse response error:", error);
@@ -74,9 +73,7 @@ function LoginPage() {
     } else {
       try {
         const errorResult = await response.json();
-        alert(
-          "Đăng nhập thất bại: " + (errorResult.message || "Lỗi không xác định")
-        );
+        alert("Đăng nhập thất bại: " + (errorResult.message || "Lỗi không xác định"));
       } catch {
         alert("Đăng nhập thất bại");
       }
@@ -88,16 +85,12 @@ function LoginPage() {
   const handleGoogleSuccess = async (credentialResponse) => {
     setLoading(true);
     try {
-      const res = await fetch(
-        "http://localhost:8080/api/Authenticate/login-google",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          // Gửi dạng object cho backend dễ map DTO
-          body: JSON.stringify({ credential: credentialResponse.credential }),
-        }
-      );
+      const res = await fetch("http://localhost:8080/api/Authenticate/login-google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ credential: credentialResponse.credential }),
+      });
 
       await handleLoginSuccess(res);
     } catch (error) {
@@ -112,7 +105,6 @@ function LoginPage() {
     setLoading(true);
 
     try {
-      // CHỈ GỬI username & password (không gửi rememberMe)
       const payload = {
         username: form.username,
         password: form.password,

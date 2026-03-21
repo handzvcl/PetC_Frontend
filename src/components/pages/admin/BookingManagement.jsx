@@ -42,7 +42,7 @@ const BookingManagement = () => {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
-    };
+    }
 
     const getWeekDates = () => {
         const dates = [];
@@ -66,7 +66,7 @@ const BookingManagement = () => {
             const startDate = formatDateForAPI(selectedWeekStart);
 
             const response = await fetch(
-                `https://localhost:7111/api/BookingManage/bookings-in-week?startDate=${startDate}`,
+                `http://localhost:8080/api/bookings/bookings-in-week?startDate=${startDate}`,
                 {
                     credentials: 'include'
                 }
@@ -117,7 +117,7 @@ const BookingManagement = () => {
             setShowBookingListPopup(false);
 
             const response = await fetch(
-                `https://localhost:7111/api/BookingManage/${bookingId}`,
+                `http://localhost:8080/api/bookings/${bookingId}`,
                 {
                     credentials: 'include'
                 }
@@ -195,17 +195,21 @@ const BookingManagement = () => {
         return { top: startPosition * 60, height: Math.max(duration * 60, 1) };
     };
 
+    // ĐÃ SỬA: Cập nhật dải màu lên 5 mức độ
     const getDensityColor = (density) => {
         const colors = [
-            'rgba(13, 110, 253, 0.25)',
-            'rgba(255, 193, 7, 0.5)',
-            'rgba(220, 53, 69, 0.7)'
+            'rgba(13, 110, 253, 0.25)', // 1: Xanh dương nhạt
+            'rgba(25, 135, 84, 0.4)',   // 2: Xanh lá
+            'rgba(255, 193, 7, 0.5)',   // 3: Vàng
+            'rgba(253, 126, 20, 0.6)',  // 4: Cam
+            'rgba(220, 53, 69, 0.8)'    // 5+: Đỏ
         ];
 
         const index = Math.min(density - 1, colors.length - 1);
         return colors[index];
     };
 
+    // ĐÃ SỬA: Icon động theo số lượng density
     const getDensityIcon = (density) => {
         if (density === 1) {
             return (
@@ -221,10 +225,11 @@ const BookingManagement = () => {
                 </div>
             );
         } else {
+            // Từ 3 trở lên sẽ hiện icon nhóm + con số (3, 4, 5, 6...)
             return (
                 <div className="d-flex align-items-center justify-content-center gap-1">
                     <i className="fas fa-users" style={{ fontSize: '1rem' }}></i>
-                    <span className="badge bg-danger rounded-circle" style={{
+                    <span className="badge bg-dark rounded-circle text-white shadow-sm" style={{
                         fontSize: '0.65rem',
                         minWidth: '20px',
                         height: '20px',
@@ -355,59 +360,45 @@ const BookingManagement = () => {
                 </div>
             </div>
 
-            {/* Legend */}
+            {/* ĐÃ SỬA: Legend cập nhật lên 5 mức độ */}
             <div className="card mb-4">
                 <div className="card-body">
                     <div className="d-flex align-items-center gap-4 flex-wrap">
                         <span className="fw-bold me-2">Mật độ lịch hẹn:</span>
-                        <div className="d-flex align-items-center gap-2">
-                            <div style={{
-                                width: '50px',
-                                height: '30px',
-                                backgroundColor: getDensityColor(1),
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                            }}>
-                                <i className="fas fa-user" style={{ fontSize: '0.9rem' }}></i>
+                        
+                        {[1, 2, 3, 4, 5].map(num => (
+                            <div key={num} className="d-flex align-items-center gap-2">
+                                <div style={{
+                                    width: '55px',
+                                    height: '32px',
+                                    backgroundColor: getDensityColor(num),
+                                    border: '1px solid rgba(0,0,0,0.1)',
+                                    borderRadius: '4px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: num >= 4 ? 'white' : '#333'
+                                }}>
+                                    {num === 1 && <i className="fas fa-user" style={{ fontSize: '0.9rem' }}></i>}
+                                    {num === 2 && (
+                                        <div className="d-flex gap-1">
+                                            <i className="fas fa-user" style={{ fontSize: '0.8rem' }}></i>
+                                            <i className="fas fa-user" style={{ fontSize: '0.8rem' }}></i>
+                                        </div>
+                                    )}
+                                    {num >= 3 && (
+                                        <div className="d-flex align-items-center gap-1">
+                                            <i className="fas fa-users" style={{ fontSize: '0.9rem' }}></i>
+                                            <span className="badge bg-dark rounded-circle text-white" style={{ fontSize: '0.6rem', padding: '0.25em 0.4em' }}>
+                                                {num === 5 ? '5+' : num}
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+                                <span>{num === 5 ? '5+ lịch' : `${num} lịch`}</span>
                             </div>
-                            <span>1 lịch</span>
-                        </div>
-                        <div className="d-flex align-items-center gap-2">
-                            <div style={{
-                                width: '50px',
-                                height: '30px',
-                                backgroundColor: getDensityColor(2),
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '3px'
-                            }}>
-                                <i className="fas fa-user" style={{ fontSize: '0.8rem' }}></i>
-                                <i className="fas fa-user" style={{ fontSize: '0.8rem' }}></i>
-                            </div>
-                            <span>2 lịch</span>
-                        </div>
-                        <div className="d-flex align-items-center gap-2">
-                            <div style={{
-                                width: '50px',
-                                height: '30px',
-                                backgroundColor: getDensityColor(3),
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: 'white'
-                            }}>
-                                <i className="fas fa-users" style={{ fontSize: '0.9rem' }}></i>
-                            </div>
-                            <span>3+ lịch</span>
-                        </div>
+                        ))}
+                        
                     </div>
                 </div>
             </div>
@@ -417,7 +408,7 @@ const BookingManagement = () => {
                 <div className="card-body p-0">
                     {loading ? (
                         <div className="text-center py-5">
-                            <div className="spinner-border" role="status">
+                            <div className="spinner-border text-primary" role="status">
                                 <span className="visually-hidden">Loading...</span>
                             </div>
                         </div>
@@ -524,7 +515,8 @@ const BookingManagement = () => {
                                                                 display: 'flex',
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
-                                                                color: segment.density >= 3 ? 'white' : '#333'
+                                                                // ĐÃ SỬA: Màu chữ trắng khi mật độ >= 4 (Cam và Đỏ)
+                                                                color: segment.density >= 4 ? 'white' : '#333'
                                                             }}
                                                             onClick={(e) => handleSegmentClick(e, segment)}
                                                             onMouseMove={(e) => handleMouseMove(e, segment)}
