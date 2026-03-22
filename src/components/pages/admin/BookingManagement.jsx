@@ -2,9 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 const BookingManagement = () => {
-    // =========================================================================
-    // 1. STATES CỦA PHẦN QUẢN LÝ LỊCH 
-    // =========================================================================
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedWeekStart, setSelectedWeekStart] = useState(getMonday(new Date()));
@@ -16,11 +13,7 @@ const BookingManagement = () => {
     const [hoveredSegment, setHoveredSegment] = useState(null);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
-
-    // =========================================================================
-    // 2. STATES TÌM KIẾM & CAMERA QUÉT QR
-    // =========================================================================
-    const [searchPhone, setSearchPhone] = useState('');
+    const [searchEmail, setSearchEmail] = useState('');
     const [searchingUser, setSearchingUser] = useState(false);
     const [foundUser, setFoundUser] = useState(null);
     const [userSearchError, setUserSearchError] = useState(null);
@@ -28,9 +21,6 @@ const BookingManagement = () => {
     const [showScannerModal, setShowScannerModal] = useState(false);
     const [isScanningAPI, setIsScanningAPI] = useState(false);
 
-    // =========================================================================
-    // 3. STATES CỦA FORM TẠO/SỬA LỊCH
-    // =========================================================================
     const [showCreateBookingModal, setShowCreateBookingModal] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false); 
     const [isDeleting, setIsDeleting] = useState(false); 
@@ -67,9 +57,6 @@ const BookingManagement = () => {
     const [addingPet, setAddingPet] = useState(false);
     const [addPetError, setAddPetError] = useState(null);
 
-    // =========================================================================
-    // UTILS 
-    // =========================================================================
     function getMonday(date) {
         const d = new Date(date);
         const day = d.getDay();
@@ -109,10 +96,6 @@ const BookingManagement = () => {
     const formatTime = (dateTimeString) => new Date(dateTimeString).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const formatDateTime = (dateTimeString) => new Date(dateTimeString).toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
     const getTodayDate = () => new Date().toISOString().split('T')[0];
-
-    // =========================================================================
-    // EFFECTS
-    // =========================================================================
     useEffect(() => {
         fetchBookings();
     }, [selectedWeekStart]);
@@ -125,10 +108,6 @@ const BookingManagement = () => {
             setSelectedSlot(null);
         }
     }, [newBookingDate, selectedServices]);
-
-    // =========================================================================
-    // LOGIC CAMERA SCANNER 
-    // =========================================================================
     useEffect(() => {
         let html5QrcodeScanner = null;
         if (showScannerModal) {
@@ -153,16 +132,13 @@ const BookingManagement = () => {
         } catch (err) { showToast(err.message, 'error'); } finally { setIsScanningAPI(false); }
     };
 
-    // =========================================================================
-    // HÀM XỬ LÝ API 
-    // =========================================================================
-
     const handleSearchUser = async (e) => {
         e.preventDefault();
-        if (!searchPhone) return;
+        if (!searchEmail) return;
         try {
             setSearchingUser(true); setUserSearchError(null); setFoundUser(null);
-            const response = await fetch(`http://localhost:8080/api/user/search?phone=${searchPhone}`);
+            // SỬA: Gọi API với tham số email
+            const response = await fetch(`http://localhost:8080/api/user/search?email=${searchEmail}`);
             const result = await response.json();
             if (response.ok && result.success) {
                 setFoundUser(result.data); showToast(`Tìm khách hàng: ${result.data.username}`, 'success');
@@ -213,11 +189,6 @@ const BookingManagement = () => {
             } else throw new Error(result.message);
         } catch (err) { showToast(err.message || 'Lỗi khi xóa', 'error'); } finally { setIsDeleting(false); }
     };
-
-    // =========================================================================
-    // XỬ LÝ LẤY DỊCH VỤ THEO PET TYPE
-    // =========================================================================
-
     const fetchServicesByPetType = async (petTypeId) => {
         try {
             setLoadingServices(true); setServiceError(null);
@@ -240,27 +211,22 @@ const BookingManagement = () => {
                 fetchServicesByPetType(pet.petTypeId);
             }
         } else {
-            setServices([]); // Nếu không chọn pet nào thì xóa danh sách dịch vụ
+            setServices([]);
         }
     };
 
     const handleOpenEditBooking = async () => {
         setIsEditMode(true);
         setShowDetailModal(false);
-        setFoundUser({ id: selectedBooking.userId, username: selectedBooking.userName, phone: '' });
+        setFoundUser({ id: selectedBooking.userId, username: selectedBooking.userName, email: selectedBooking.userEmail || '' });
         
         try {
-            // Chỉ fetch Pet trước
             const petsRes = await fetch(`http://localhost:8080/api/pet/user/${selectedBooking.userId}`);
             const petsData = await petsRes.json();
             const allPets = petsData.data || petsData;
             setPets(allPets);
-            
-            // Tìm con Pet đang được chọn trong Booking cũ
             const currentPet = allPets.find(p => String(p.id) === String(selectedBooking.petId));
             setSelectedPet(selectedBooking.petId);
-
-            // Fetch Dịch vụ tương ứng với con Pet đó
             let allServices = [];
             if (currentPet && currentPet.petTypeId) {
                 const srvRes = await fetch(`http://localhost:8080/api/service/pet-type/${currentPet.petTypeId}`);
@@ -291,8 +257,6 @@ const BookingManagement = () => {
         setIsEditMode(false);
         setShowCreateBookingModal(true);
         fetchUserPets(foundUser.id);
-        
-        // Reset form toàn bộ (Dịch vụ sẽ trống cho đến khi chọn Pet)
         setServices([]);
         setSelectedServices([]); setSelectedPet(''); setNewBookingDate(''); setSelectedSlot(null); setNotes('');
     };
@@ -381,10 +345,6 @@ const BookingManagement = () => {
             fetchBookings(); 
         } catch (err) { alert('Lỗi xác nhận: ' + err.message); } finally { setConfirming(false); }
     };
-
-    // =========================================================================
-    // CÁC HÀM XỬ LÝ SỰ KIỆN GIAO DIỆN KHÁC
-    // =========================================================================
     const handlePreviousWeek = () => { const newDate = new Date(selectedWeekStart); newDate.setDate(newDate.getDate() - 7); setSelectedWeekStart(newDate); setSelectedDate(formatDateForInput(newDate)); };
     const handleNextWeek = () => { const newDate = new Date(selectedWeekStart); newDate.setDate(newDate.getDate() + 7); setSelectedWeekStart(newDate); setSelectedDate(formatDateForInput(newDate)); };
     const handleToday = () => { const today = new Date(); setSelectedWeekStart(getMonday(today)); setSelectedDate(formatDateForInput(today)); };
@@ -442,10 +402,6 @@ const BookingManagement = () => {
     };
     const isServiceSelected = (serviceId) => selectedServices.some(s => s.id === serviceId);
     const handleRemoveService = (serviceId) => setSelectedServices(selectedServices.filter(s => s.id !== serviceId));
-
-    // =========================================================================
-    // RENDER UI
-    // =========================================================================
     return (
         <div className="container-fluid px-4">
             {toast.show && (
@@ -463,8 +419,6 @@ const BookingManagement = () => {
                 <li className="breadcrumb-item"><a href="/admin">Dashboard</a></li>
                 <li className="breadcrumb-item active">Đặt lịch</li>
             </ol>
-
-            {/* --- LAYOUT TÌM KIẾM & CAMERA --- */}
             <div className="row mb-4">
                 <div className="col-md-6 mb-3 mb-md-0">
                     <div className="card shadow-sm border-primary h-100" style={{ borderTopWidth: '4px' }}>
@@ -473,7 +427,7 @@ const BookingManagement = () => {
                         </div>
                         <div className="card-body">
                             <form onSubmit={handleSearchUser} className="d-flex gap-2">
-                                <input type="tel" className="form-control" placeholder="Nhập số điện thoại..." value={searchPhone} onChange={(e) => setSearchPhone(e.target.value)} required />
+                                <input type="email" className="form-control" placeholder="Nhập email khách hàng..." value={searchEmail} onChange={(e) => setSearchEmail(e.target.value)} required />
                                 <button type="submit" className="btn btn-primary px-4" disabled={searchingUser}>
                                     {searchingUser ? <span className="spinner-border spinner-border-sm"></span> : 'Tìm'}
                                 </button>
@@ -483,7 +437,7 @@ const BookingManagement = () => {
                                 <div className="alert alert-success mt-3 mb-0 d-flex justify-content-between align-items-center">
                                     <div>
                                         <strong><i className="fas fa-user-check me-2"></i>{foundUser.username}</strong>
-                                        <span className="ms-3 text-muted"><i className="fas fa-phone me-1"></i>{foundUser.phone}</span>
+                                        <span className="ms-3 text-muted"><i className="fas fa-envelope me-1"></i>{foundUser.email}</span>
                                     </div>
                                     <button className="btn btn-sm btn-success fw-bold" onClick={handleOpenCreateBooking}>
                                         <i className="fas fa-calendar-plus me-1"></i> Tạo lịch
@@ -521,8 +475,6 @@ const BookingManagement = () => {
                     </div>
                 </div>
             </div>
-
-            {/* --- LỊCH QUẢN LÝ --- */}
             <div className="card mb-4">
                 <div className="card-body">
                     <div className="row align-items-center">
@@ -621,8 +573,6 @@ const BookingManagement = () => {
                     )}
                 </div>
             </div>
-
-            {/* Hover Tooltip */}
             {hoveredSegment && (
                 <div className="position-fixed bg-dark text-white p-2 rounded shadow" style={{ left: `${mousePosition.x + 15}px`, top: `${mousePosition.y + 15}px`, zIndex: 9999, fontSize: '0.85rem', pointerEvents: 'none', maxWidth: '300px' }}>
                     <div className="fw-bold mb-1">{hoveredSegment.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - {hoveredSegment.end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
@@ -634,8 +584,6 @@ const BookingManagement = () => {
                     </div>
                 </div>
             )}
-
-            {/* Booking List Popup */}
             {showBookingListPopup && (
                 <>
                     <div className="position-fixed top-0 start-0 w-100 h-100" style={{ zIndex: 1040 }} onClick={() => setShowBookingListPopup(false)}></div>
@@ -660,8 +608,6 @@ const BookingManagement = () => {
                     </div>
                 </>
             )}
-
-            {/* BẢNG CHI TIẾT 1 BOOKING */}
             {showDetailModal && selectedBooking && (
                 <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
                     <div className="modal-dialog modal-dialog-centered modal-lg">
@@ -704,8 +650,6 @@ const BookingManagement = () => {
                                     <div className="mt-3"><h6 className="fw-bold"><i className="fas fa-sticky-note me-2"></i>Ghi chú:</h6><div className="alert alert-info mb-0"><i className="fas fa-info-circle me-2"></i>{selectedBooking.notes}</div></div>
                                 )}
                             </div>
-                            
-                            {/* --- KHU VỰC NÚT ĐIỀU KHIỂN DƯỚI CÙNG --- */}
                             <div className="modal-footer d-flex justify-content-between bg-light">
                                 <div>
                                     {(selectedBooking.bookingStatus === 0 || selectedBooking.bookingStatus === 1) && (
@@ -740,8 +684,6 @@ const BookingManagement = () => {
                     </div>
                 </div>
             )}
-
-            {/* MODAL CAMERA QUÉT QR */}
             {showScannerModal && (
                 <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 1060 }}>
                     <div className="modal-dialog modal-dialog-centered">
@@ -760,8 +702,6 @@ const BookingManagement = () => {
                     </div>
                 </div>
             )}
-
-            {/* MODAL TẠO/SỬA LỊCH */}
             {showCreateBookingModal && (
                 <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1040, overflowY: 'auto' }}>
                     <div className="modal-dialog modal-xl modal-dialog-scrollable">
@@ -784,7 +724,6 @@ const BookingManagement = () => {
                                     <div className="col-lg-8 mx-auto">
                                         <div className="card border-0 shadow-sm">
                                             <div className="card-body p-4">
-                                                {/* Pet Selection */}
                                                 <div className="mb-4">
                                                     <label className="form-label fw-bold text-secondary">1. Chọn thú cưng <span className="text-danger">*</span></label>
                                                     {loadingPets ? (
@@ -804,12 +743,9 @@ const BookingManagement = () => {
                                                         </div>
                                                     )}
                                                 </div>
-
-                                                {/* Service Selection */}
                                                 <div className="mb-4">
                                                     <label className="form-label fw-bold text-secondary">2. Dịch vụ Spa <span className="text-danger">*</span></label>
                                                     
-                                                    {/* Chỉ hiện nút chọn dịch vụ khi đã chọn Pet */}
                                                     {!selectedPet ? (
                                                         <div className="text-muted small fst-italic">Vui lòng chọn Thú cưng trước để xem các dịch vụ phù hợp.</div>
                                                     ) : (
@@ -832,14 +768,12 @@ const BookingManagement = () => {
                                                     )}
                                                 </div>
 
-                                                {/* Date Selection */}
                                                 <div className="mb-4">
                                                     <label className="form-label fw-bold text-secondary">3. Chọn ngày <span className="text-danger">*</span></label>
                                                     <input type="date" className="form-control form-control-lg" value={newBookingDate} min={getTodayDate()} onChange={(e) => setNewBookingDate(e.target.value)} disabled={selectedServices.length === 0} />
                                                     {selectedServices.length === 0 && <small className="text-danger mt-1">Vui lòng chọn dịch vụ trước</small>}
                                                 </div>
 
-                                                {/* Time Slot Selection */}
                                                 {newBookingDate && selectedServices.length > 0 && (
                                                     <div className="mb-4 p-3 border rounded bg-white">
                                                         <label className="form-label fw-bold text-secondary">4. Khung giờ trống <span className="text-danger">*</span></label>
@@ -885,7 +819,6 @@ const BookingManagement = () => {
                 </div>
             )}
 
-            {/* MODAL CHỌN DỊCH VỤ */}
             {showServiceModal && (
                 <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
                     <div className="modal-dialog modal-lg modal-dialog-centered">
@@ -964,7 +897,7 @@ const BookingManagement = () => {
                             <div className="modal-body">
                                 <table className="table table-bordered">
                                     <tbody>
-                                        <tr><th width="40%" className="bg-light">Khách hàng</th><td><strong>{foundUser?.username}</strong> ({foundUser?.phone})</td></tr>
+                                        <tr><th width="40%" className="bg-light">Khách hàng</th><td><strong>{foundUser?.username}</strong> ({foundUser?.email})</td></tr>
                                         <tr><th className="bg-light">Mã booking</th><td><strong className="text-primary">{newBookingResult.bookingCode}</strong></td></tr>
                                         <tr><th className="bg-light">Thời gian</th><td>{formatDateTime(newBookingResult.scheduledAt)} - {formatTime(newBookingResult.expectedEndTime)}</td></tr>
                                         <tr><th className="bg-light align-middle">Tổng thanh toán</th><td className="bg-light"><strong className="text-danger fs-4">{newBookingResult.totalPrice.toLocaleString('vi-VN')}đ</strong></td></tr>
