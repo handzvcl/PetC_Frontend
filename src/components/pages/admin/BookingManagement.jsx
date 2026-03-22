@@ -51,7 +51,7 @@ const BookingManagement = () => {
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [confirming, setConfirming] = useState(false);
-    
+    const [slotError, setSlotError] = useState(null);
     const [showServiceModal, setShowServiceModal] = useState(false);
     const [showAddPetModal, setShowAddPetModal] = useState(false);
     const [newBookingResult, setNewBookingResult] = useState(null);
@@ -336,7 +336,10 @@ const BookingManagement = () => {
             const totalDuration = selectedServices.reduce((sum, service) => sum + service.durationInMinutes, 0);
             const response = await fetch(`http://localhost:8080/api/bookings/available-slots?selectedDay=${newBookingDate}&durationInMinutes=${totalDuration}`);
             const result = await response.json();
-            if (response.ok && result.success) setAvailableSlots(result.data);
+            if (response.ok && result.success) {
+                console.log('Available slots:', result.data);
+                setAvailableSlots(result.data);
+            }
             else throw new Error(result.message);
         } catch (err) { setSlotError(err.message); setAvailableSlots([]); } finally { setLoadingSlots(false); }
     };
