@@ -28,6 +28,11 @@ const BookingPage = () => {
   const [bookingResult, setBookingResult] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState("MOMO_PREPAID");
+  const [vouchers, setVouchers] = useState([]);
+  const [loadingVouchers, setLoadingVouchers] = useState(false);
+  const [voucherError, setVoucherError] = useState(null);
+  const [selectedVoucherCode, setSelectedVoucherCode] = useState("");
 
   // New pet form states
   const [newPet, setNewPet] = useState({
@@ -42,7 +47,7 @@ const BookingPage = () => {
   useEffect(() => {
     fetchServices();
     fetchUserPets();
-  }, []);
+  }, [user]);
 
   // Fetch available slots when date and services change
   useEffect(() => {
@@ -79,7 +84,14 @@ const BookingPage = () => {
   const fetchUserPets = async () => {
     try {
       setLoadingPets(true);
-      const response = await fetch("http://localhost:8080/api/Pet/user-pets", {
+      const currentUserId = Number(user?.userId ?? user?.id);
+      if (!Number.isFinite(currentUserId)) {
+        setPets([]);
+        setPetError("Vui lòng đăng nhập để tải danh sách thú cưng");
+        return;
+      }
+
+      const response = await fetch(`http://localhost:8080/api/pet/user/${currentUserId}`, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -109,9 +121,7 @@ const BookingPage = () => {
   const fetchPetTypes = async () => {
     try {
       setLoadingPetTypes(true);
-      const response = await fetch(
-        "http://localhost:8080/api/PetType/is-active",
-      );
+      const response = await fetch("http://localhost:8080/api/pet-type");
 
       if (!response.ok) {
         throw new Error("Không thể tải danh sách loại thú cưng");
@@ -165,6 +175,33 @@ const BookingPage = () => {
     }
   };
 
+  const fetchMyVouchers = async (token) => {
+    try {
+      setLoadingVouchers(true);
+      setVoucherError(null);
+
+      const response = await fetch("http://localhost:8080/api/bookings/me/vouchers", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || "Không thể tải danh sách voucher");
+      }
+
+      setVouchers(result.data || []);
+    } catch (err) {
+      setVoucherError(err.message);
+      setVouchers([]);
+    } finally {
+      setLoadingVouchers(false);
+    }
+  };
+
   const handleOpenAddPetModal = () => {
     setShowAddPetModal(true);
     fetchPetTypes();
@@ -177,7 +214,12 @@ const BookingPage = () => {
       setAddingPet(true);
       setAddPetError(null);
 
-      const response = await fetch("http://localhost:8080/api/Pet", {
+      const currentUserId = Number(user?.userId ?? user?.id);
+      if (!Number.isFinite(currentUserId)) {
+        throw new Error("Không xác định được người dùng hiện tại");
+      }
+
+      const response = await fetch(`http://localhost:8080/api/pet/user/${currentUserId}`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -219,8 +261,13 @@ const BookingPage = () => {
     try {
       setSubmitting(true);
 
+      const currentUserId = Number(user?.userId ?? user?.id);
+      if (!Number.isFinite(currentUserId)) {
+        throw new Error("Vui lòng đăng nhập trước khi đặt lịch");
+      }
+
       const response = await fetch(
-        `http://localhost:8080/api/bookings/user/${user?.id}`,
+        `http://localhost:8080/api/bookings/user/${currentUserId}`,
         {
           method: "POST",
           credentials: "include",
@@ -242,6 +289,12 @@ const BookingPage = () => {
 
       const result = await response.json();
       if (result.success) {
+        const token = user?.token;
+        if (token) {
+          await fetchMyVouchers(token);
+        }
+        setSelectedVoucherCode("");
+        setPaymentMethod("MOMO_PREPAID");
         setBookingResult(result.data);
         setShowConfirmModal(true);
       } else {
@@ -259,23 +312,50 @@ const BookingPage = () => {
     try {
       setConfirming(true);
 
+      const token = user?.token;
+      if (!token) {
+        throw new Error("Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.");
+      }
+
       const response = await fetch(
-        `http://localhost:8080/api/bookings/${bookingResult.id}/confirm`,
+        `http://localhost:8080/api/payments/booking/${bookingResult.id}/init`,
         {
           method: "POST",
-          credentials: "include",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
+          body: JSON.stringify({
+            paymentMethod,
+            voucherCode:
+              paymentMethod === "MOMO_PREPAID" || paymentMethod === "VNPAY_PREPAID"
+                ? (selectedVoucherCode || null)
+                : null,
+          }),
         },
       );
 
-      if (!response.ok) {
-        throw new Error("Không thể xác nhận lịch hẹn");
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        throw new Error(result?.message || "Không thể khởi tạo thanh toán");
+      }
+
+      if (!result.success) {
+        throw new Error(result.message || "Khởi tạo thanh toán thất bại");
+      }
+
+      const paymentData = result.data;
+
+      if (
+        (paymentMethod === "MOMO_PREPAID" || paymentMethod === "VNPAY_PREPAID") &&
+        paymentData?.paymentUrl
+      ) {
+        window.location.href = paymentData.paymentUrl;
+        return;
       }
 
       setShowConfirmModal(false);
-      setShowSuccessModal(true);
+      navigate(`/booking/details/${bookingResult.id}?fromPayment=0&method=PAY_LATER`);
     } catch (err) {
       alert("Lỗi xác nhận: " + err.message);
       console.error("Error confirming booking:", err);
@@ -285,6 +365,10 @@ const BookingPage = () => {
   };
 
   const handleSuccessOk = () => {
+    if (bookingResult?.id) {
+      navigate(`/booking/details/${bookingResult.id}`);
+      return;
+    }
     navigate("/");
   };
 
@@ -340,13 +424,22 @@ const BookingPage = () => {
   const getBookingStatusText = (status) => {
     const statusMap = {
       0: "Chờ xác nhận",
-      1: "Đã xác nhận",
-      2: "Đang thực hiện",
-      3: "Hoàn thành",
-      4: "Đã hủy",
+      1: "Chờ thanh toán",
+      2: "Đã xác nhận",
+      3: "Đang thực hiện",
+      4: "Hoàn thành",
+      5: "Đã hủy",
+      6: "Vắng mặt",
     };
     return statusMap[status] || "Không xác định";
   };
+
+  const selectedVoucher = vouchers.find((voucher) => voucher.code === selectedVoucherCode);
+  const voucherDiscountPreview =
+    paymentMethod === "MOMO_PREPAID" || paymentMethod === "VNPAY_PREPAID"
+      ? Math.min(Number(selectedVoucher?.remainingAmount || 0), Number(bookingResult?.totalPrice || 0))
+      : 0;
+  const payablePreview = Math.max(0, Number(bookingResult?.totalPrice || 0) - voucherDiscountPreview);
 
   return (
     <div className="container mt-5">
@@ -798,6 +891,13 @@ const BookingPage = () => {
             <div className="modal-content">
               <div className="modal-header bg-success text-white">
                 <h5 className="modal-title">Xác nhận lịch hẹn</h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  aria-label="Close"
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={confirming}
+                ></button>
               </div>
               <div className="modal-body">
                 <div className="alert alert-warning">
@@ -867,8 +967,104 @@ const BookingPage = () => {
                     </tr>
                   </tbody>
                 </table>
+
+                <div className="mt-3">
+                  <label className="form-label fw-bold">
+                    Phương thức thanh toán <span className="text-danger">*</span>
+                  </label>
+                  <div className="d-flex flex-column gap-2">
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="paymentMethod"
+                        id="pay-momo"
+                        value="MOMO_PREPAID"
+                        checked={paymentMethod === "MOMO_PREPAID"}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                      />
+                      <label className="form-check-label" htmlFor="pay-momo">
+                        MOMO (thanh toán trước)
+                      </label>
+                    </div>
+
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="paymentMethod"
+                        id="pay-vnpay"
+                        value="VNPAY_PREPAID"
+                        checked={paymentMethod === "VNPAY_PREPAID"}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                      />
+                      <label className="form-check-label" htmlFor="pay-vnpay">
+                        VNPay (thanh toán trước)
+                      </label>
+                    </div>
+
+                    <div className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="radio"
+                        name="paymentMethod"
+                        id="pay-later"
+                        value="PAY_LATER"
+                        checked={paymentMethod === "PAY_LATER"}
+                        onChange={(e) => {
+                          setPaymentMethod(e.target.value);
+                          setSelectedVoucherCode("");
+                        }}
+                      />
+                      <label className="form-check-label" htmlFor="pay-later">
+                        Thanh toán sau khi hoàn thành dịch vụ
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {(paymentMethod === "MOMO_PREPAID" || paymentMethod === "VNPAY_PREPAID") && (
+                  <div className="mt-3">
+                    <label className="form-label fw-bold">Áp dụng voucher</label>
+                    {loadingVouchers ? (
+                      <div className="text-muted">Đang tải voucher...</div>
+                    ) : (
+                      <>
+                        {voucherError && <div className="text-danger small mb-2">{voucherError}</div>}
+                        <select
+                          className="form-select"
+                          value={selectedVoucherCode}
+                          onChange={(e) => setSelectedVoucherCode(e.target.value)}
+                        >
+                          <option value="">Không dùng voucher</option>
+                          {vouchers.map((voucher) => (
+                            <option key={voucher.id} value={voucher.code}>
+                              {voucher.code} - còn {Number(voucher.remainingAmount || 0).toLocaleString("vi-VN")}đ
+                            </option>
+                          ))}
+                        </select>
+                        <div className="mt-2 small text-muted">
+                          <div>
+                            Giảm voucher: <strong>-{voucherDiscountPreview.toLocaleString("vi-VN")}đ</strong>
+                          </div>
+                          <div>
+                            Cần thanh toán: <strong className="text-danger">{payablePreview.toLocaleString("vi-VN")}đ</strong>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary"
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={confirming}
+                >
+                  Đóng
+                </button>
                 <button
                   type="button"
                   className="btn btn-success btn-lg"
@@ -885,7 +1081,7 @@ const BookingPage = () => {
                       Đang xác nhận...
                     </>
                   ) : (
-                    "Xác nhận lịch hẹn"
+                    "Xác nhận & tiếp tục thanh toán"
                   )}
                 </button>
               </div>

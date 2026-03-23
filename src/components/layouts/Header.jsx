@@ -39,6 +39,25 @@ function Header() {
                                 Đặt ngay
                             </NavLink>
                         </li>
+                        {isAuth && (
+                            <>
+                                <li className="nav-item">
+                                    <NavLink to="/bookings" className="nav-link">
+                                        Danh sách lịch hẹn
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/booking/details/latest" className="nav-link">
+                                        Chi tiết lịch hẹn
+                                    </NavLink>
+                                </li>
+                                <li className="nav-item">
+                                    <NavLink to="/vouchers" className="nav-link">
+                                        Voucher
+                                    </NavLink>
+                                </li>
+                            </>
+                        )}
                     </ul>
 
                     {/* RIGHT */}
@@ -71,6 +90,22 @@ function Header() {
                                     />
                                 </a>
                                 <ul className="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <NavLink to="/bookings" className="dropdown-item">
+                                            Danh sách lịch hẹn
+                                        </NavLink>
+                                    </li>
+                                    <li>
+                                        <NavLink to="/booking/details/latest" className="dropdown-item">
+                                            Chi tiết lịch hẹn
+                                        </NavLink>
+                                    </li>
+                                    <li>
+                                        <NavLink to="/vouchers" className="dropdown-item">
+                                            Voucher của tôi
+                                        </NavLink>
+                                    </li>
+                                    <li><hr className="dropdown-divider" /></li>
                                      <li>
                                         <button className="dropdown-item">
                                                 Tài khoản

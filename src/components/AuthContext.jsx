@@ -2,6 +2,19 @@ import { createContext, useContext, useState } from "react";
 
 const AuthContext = createContext();
 
+const normalizeUser = (rawUser) => {
+  if (!rawUser) return null;
+
+  const parsedId = Number(rawUser.userId ?? rawUser.id);
+  const normalizedUserId = Number.isFinite(parsedId) ? parsedId : null;
+
+  return {
+    ...rawUser,
+    userId: normalizedUserId,
+    id: normalizedUserId,
+  };
+};
+
 export function AuthProvider({ children }) {
   const [isAuth, setIsAuth] = useState(
     localStorage.getItem("isAuth") === "true",
@@ -9,17 +22,24 @@ export function AuthProvider({ children }) {
   const [userRole, setUserRole] = useState(
     localStorage.getItem("userRole") || null,
   );
-  const [user, setUser] = useState(
-    JSON.parse(localStorage.getItem("user")) || null,
-  );
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem("user");
+    if (!stored) return null;
+    try {
+      return normalizeUser(JSON.parse(stored));
+    } catch {
+      return null;
+    }
+  });
 
   const login = (userData) => {
     localStorage.setItem("isAuth", "true");
     if (userData) {
+      const normalizedUser = normalizeUser(userData);
       localStorage.setItem("userRole", userData.role);
-      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("user", JSON.stringify(normalizedUser));
       setUserRole(userData.role);
-      setUser(userData);
+      setUser(normalizedUser);
     }
     setIsAuth(true);
   };

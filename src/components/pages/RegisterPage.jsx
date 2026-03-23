@@ -41,7 +41,7 @@ function RegisterPage() {
                         if (Array.isArray(tokenRole)) tokenRole = tokenRole[0];
 
                         login({
-                            userId: decoded?.sub || data.userId || data.id, 
+                            userId: data.userId || data.id || decoded?.userId || decoded?.id || null,
                             username: decoded?.preferred_username || data.userName || data.username,
                             email: decoded?.email || data.email,
                             role: tokenRole,
