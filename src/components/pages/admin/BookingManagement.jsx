@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 const BookingManagement = () => {
+    // --- BẢNG STATE CƠ BẢN ---
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedWeekStart, setSelectedWeekStart] = useState(getMonday(new Date()));
@@ -13,19 +14,20 @@ const BookingManagement = () => {
     const [hoveredSegment, setHoveredSegment] = useState(null);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const [toast, setToast] = useState({ show: false, message: '', type: '' });
+    
+    // --- STATE TÌM KIẾM & QUÉT MÃ ---
     const [searchEmail, setSearchEmail] = useState('');
     const [searchingUser, setSearchingUser] = useState(false);
     const [foundUser, setFoundUser] = useState(null);
     const [userSearchError, setUserSearchError] = useState(null);
-
     const [showScannerModal, setShowScannerModal] = useState(false);
     const [isScanningAPI, setIsScanningAPI] = useState(false);
 
+    // --- STATE TẠO / SỬA LỊCH ---
     const [showCreateBookingModal, setShowCreateBookingModal] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false); 
     const [isDeleting, setIsDeleting] = useState(false); 
     const [updatingStatus, setUpdatingStatus] = useState(false); 
-
     const [services, setServices] = useState([]);
     const [selectedServices, setSelectedServices] = useState([]);
     const [pets, setPets] = useState([]);
@@ -35,28 +37,29 @@ const BookingManagement = () => {
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [notes, setNotes] = useState('');
     const [availableSlots, setAvailableSlots] = useState([]);
-    
     const [loadingServices, setLoadingServices] = useState(false);
     const [loadingPets, setLoadingPets] = useState(false);
     const [loadingPetTypes, setLoadingPetTypes] = useState(false);
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [confirming, setConfirming] = useState(false);
-    
     const [serviceError, setServiceError] = useState(null);
     const [petError, setPetError] = useState(null);
     const [slotError, setSlotError] = useState(null);
-    
     const [showServiceModal, setShowServiceModal] = useState(false);
     const [showAddPetModal, setShowAddPetModal] = useState(false);
     const [newBookingResult, setNewBookingResult] = useState(null);
     const [showCreateConfirmModal, setShowCreateConfirmModal] = useState(false);
     const [showCreateSuccessModal, setShowCreateSuccessModal] = useState(false);
-
     const [newPet, setNewPet] = useState({ name: '', petTypeId: '', age: '' });
     const [addingPet, setAddingPet] = useState(false);
     const [addPetError, setAddPetError] = useState(null);
 
+    // --- STATE THANH TOÁN TẠI QUẦY ---
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('PAY_LATER');
+
+    // --- CÁC HÀM TIỆN ÍCH ---
     function getMonday(date) {
         const d = new Date(date);
         const day = d.getDay();
@@ -96,6 +99,8 @@ const BookingManagement = () => {
     const formatTime = (dateTimeString) => new Date(dateTimeString).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
     const formatDateTime = (dateTimeString) => new Date(dateTimeString).toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
     const getTodayDate = () => new Date().toISOString().split('T')[0];
+    
+    // --- EFFECTS ---
     useEffect(() => {
         fetchBookings();
     }, [selectedWeekStart]);
@@ -108,6 +113,7 @@ const BookingManagement = () => {
             setSelectedSlot(null);
         }
     }, [newBookingDate, selectedServices]);
+    
     useEffect(() => {
         let html5QrcodeScanner = null;
         if (showScannerModal) {
@@ -121,6 +127,7 @@ const BookingManagement = () => {
         return () => { if (html5QrcodeScanner) { html5QrcodeScanner.clear().catch(e => console.error(e)); } };
     }, [showScannerModal]);
 
+    // --- API CALLS CHÍNH ---
     const fetchBookingByCode = async (code) => {
         try {
             setIsScanningAPI(true);
@@ -137,7 +144,6 @@ const BookingManagement = () => {
         if (!searchEmail) return;
         try {
             setSearchingUser(true); setUserSearchError(null); setFoundUser(null);
-            // SỬA: Gọi API với tham số email
             const response = await fetch(`http://localhost:8080/api/user/search?email=${searchEmail}`);
             const result = await response.json();
             if (response.ok && result.success) {
@@ -178,6 +184,29 @@ const BookingManagement = () => {
         } catch (err) { showToast(err.message, 'error'); } finally { setUpdatingStatus(false); }
     };
 
+    // --- HÀM THANH TOÁN CHỐT SỔ CHO ĐƠN CHƯA PAID ---
+    const handlePaymentConfirm = async () => {
+        try {
+            setUpdatingStatus(true);
+            const url = `http://localhost:8080/api/bookings/${selectedBooking.id}/complete?paymentMethod=${selectedPaymentMethod}`;
+            const response = await fetch(url, { method: 'POST', credentials: 'include' });
+            const result = await response.json();
+            
+            if (response.ok && result.success) {
+                showToast('Đã chốt doanh thu và hoàn tất lịch hẹn!', 'success');
+                setShowPaymentModal(false);
+                setShowDetailModal(false);
+                fetchBookings();
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (err) {
+            showToast('Lỗi thanh toán: ' + err.message, 'error');
+        } finally {
+            setUpdatingStatus(false);
+        }
+    };
+
     const handleDeleteBooking = async () => {
         if (!window.confirm('Bạn có chắc chắn muốn HỦY/XÓA lịch hẹn này không?')) return;
         try {
@@ -189,6 +218,8 @@ const BookingManagement = () => {
             } else throw new Error(result.message);
         } catch (err) { showToast(err.message || 'Lỗi khi xóa', 'error'); } finally { setIsDeleting(false); }
     };
+
+    // --- CÁC HÀM TẠO LỊCH ---
     const fetchServicesByPetType = async (petTypeId) => {
         try {
             setLoadingServices(true); setServiceError(null);
@@ -345,12 +376,15 @@ const BookingManagement = () => {
             fetchBookings(); 
         } catch (err) { alert('Lỗi xác nhận: ' + err.message); } finally { setConfirming(false); }
     };
+
+    // --- CÁC HÀM TÍNH TOÁN UI ---
     const handlePreviousWeek = () => { const newDate = new Date(selectedWeekStart); newDate.setDate(newDate.getDate() - 7); setSelectedWeekStart(newDate); setSelectedDate(formatDateForInput(newDate)); };
     const handleNextWeek = () => { const newDate = new Date(selectedWeekStart); newDate.setDate(newDate.getDate() + 7); setSelectedWeekStart(newDate); setSelectedDate(formatDateForInput(newDate)); };
     const handleToday = () => { const today = new Date(); setSelectedWeekStart(getMonday(today)); setSelectedDate(formatDateForInput(today)); };
     const handleDateChange = (e) => { const val = e.target.value; setSelectedDate(val); const [y, m, d] = val.split('-'); setSelectedWeekStart(getMonday(new Date(y, m - 1, d))); };
 
     const getBookingsForDate = (date) => { const dateStr = formatDateForAPI(date); return bookings.filter(b => formatDateForAPI(new Date(b.scheduledAt)) === dateStr); };
+    
     const createTimeSegments = (dayBookings) => {
         if (dayBookings.length === 0) return [];
         const timePoints = new Set();
@@ -369,20 +403,24 @@ const BookingManagement = () => {
         }
         return segments;
     };
+    
     const calculateSegmentPosition = (start, end) => {
         const startHour = start.getHours(); const startMinute = start.getMinutes(); const endHour = end.getHours(); const endMinute = end.getMinutes();
         const startPosition = (startHour - 9) + startMinute / 60; const duration = ((endHour - startHour) * 60 + (endMinute - startMinute)) / 60;
         return { top: startPosition * 60, height: Math.max(duration * 60, 1) };
     };
+    
     const getDensityColor = (density) => {
         const colors = ['rgba(13, 110, 253, 0.25)', 'rgba(25, 135, 84, 0.4)', 'rgba(255, 193, 7, 0.5)', 'rgba(253, 126, 20, 0.6)', 'rgba(220, 53, 69, 0.8)'];
         return colors[Math.min(density - 1, colors.length - 1)];
     };
+    
     const getDensityIcon = (density) => {
         if (density === 1) return <div className="d-flex align-items-center justify-content-center"><i className="fas fa-user" style={{ fontSize: '1rem' }}></i></div>;
         if (density === 2) return <div className="d-flex align-items-center justify-content-center gap-1"><i className="fas fa-user" style={{ fontSize: '0.9rem' }}></i><i className="fas fa-user" style={{ fontSize: '0.9rem' }}></i></div>;
         return <div className="d-flex align-items-center justify-content-center gap-1"><i className="fas fa-users" style={{ fontSize: '1rem' }}></i><span className="badge bg-dark rounded-circle text-white shadow-sm" style={{ fontSize: '0.65rem', minWidth: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{density}</span></div>;
     };
+    
     const handleSegmentClick = (e, segment) => {
         if (segment.bookings.length === 1) handleBookingClick(segment.bookings[0].id);
         else {
@@ -390,8 +428,33 @@ const BookingManagement = () => {
             setPopupPosition({ x: rect.left + rect.width / 2, y: rect.top }); setPopupBookings(segment.bookings); setShowBookingListPopup(true);
         }
     };
-    const getBookingStatusText = (status) => ({ 0: 'Chờ xác nhận', 1: 'Đã xác nhận', 2: 'Đang thực hiện', 3: 'Hoàn thành', 4: 'Đã hủy' })[status] || 'Không xác định';
-    const getBookingStatusColor = (status) => ({ 0: 'bg-warning', 1: 'bg-info', 2: 'bg-primary', 3: 'bg-success', 4: 'bg-secondary' })[status] || 'bg-secondary';
+
+    const getBookingStatusText = (status) => {
+        const statusMap = {
+            0: 'Chờ xử lý',
+            1: 'Chờ thanh toán',
+            2: 'Đã xác nhận',
+            3: 'Đang thực hiện',
+            4: 'Hoàn thành',
+            5: 'Đã hủy',
+            6: 'Khách không đến'
+        };
+        return statusMap[status] || 'Không xác định';
+    };
+
+    const getBookingStatusColor = (status) => {
+        const colorMap = {
+            0: 'bg-warning text-dark',
+            1: 'bg-info text-white',
+            2: 'bg-primary text-white',
+            3: 'bg-info text-white',
+            4: 'bg-success text-white',
+            5: 'bg-secondary text-white',
+            6: 'bg-danger text-white'
+        };
+        return colorMap[status] || 'bg-dark';
+    };
+
     const handleMouseMove = (e, segment) => { setHoveredSegment(segment); setMousePosition({ x: e.clientX, y: e.clientY }); };
     const handleMouseLeave = () => setHoveredSegment(null);
 
@@ -402,6 +465,7 @@ const BookingManagement = () => {
     };
     const isServiceSelected = (serviceId) => selectedServices.some(s => s.id === serviceId);
     const handleRemoveService = (serviceId) => setSelectedServices(selectedServices.filter(s => s.id !== serviceId));
+
     return (
         <div className="container-fluid px-4">
             {toast.show && (
@@ -419,7 +483,9 @@ const BookingManagement = () => {
                 <li className="breadcrumb-item"><a href="/admin">Dashboard</a></li>
                 <li className="breadcrumb-item active">Đặt lịch</li>
             </ol>
+            
             <div className="row mb-4">
+                {/* TÌM KIẾM KHÁCH HÀNG */}
                 <div className="col-md-6 mb-3 mb-md-0">
                     <div className="card shadow-sm border-primary h-100" style={{ borderTopWidth: '4px' }}>
                         <div className="card-header bg-white fw-bold">
@@ -448,6 +514,7 @@ const BookingManagement = () => {
                     </div>
                 </div>
 
+                {/* QUÉT QR CODE */}
                 <div className="col-md-6">
                     <div className="card shadow-sm border-success h-100" style={{ borderTopWidth: '4px' }}>
                         <div className="card-header bg-white fw-bold">
@@ -475,6 +542,8 @@ const BookingManagement = () => {
                     </div>
                 </div>
             </div>
+
+            {/* THANH ĐIỀU HƯỚNG LỊCH */}
             <div className="card mb-4">
                 <div className="card-body">
                     <div className="row align-items-center">
@@ -500,6 +569,7 @@ const BookingManagement = () => {
                 </div>
             </div>
 
+            {/* LEGEND MẬT ĐỘ */}
             <div className="card mb-4">
                 <div className="card-body">
                     <div className="d-flex align-items-center gap-4 flex-wrap">
@@ -516,6 +586,7 @@ const BookingManagement = () => {
                 </div>
             </div>
 
+            {/* BẢNG LỊCH TIMETABLE */}
             <div className="card mb-4">
                 <div className="card-body p-0">
                     {loading ? (
@@ -523,6 +594,7 @@ const BookingManagement = () => {
                     ) : (
                         <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '80vh' }}>
                             <div style={{ minWidth: '1100px', display: 'flex', backgroundColor: '#f8f9fa' }}>
+                                {/* Cột giờ */}
                                 <div style={{ width: '80px', flexShrink: 0, backgroundColor: 'white', borderRight: '1px solid #dee2e6' }}>
                                     <div style={{ height: '60px', borderBottom: '2px solid #dee2e6', position: 'sticky', top: 0, backgroundColor: 'white', zIndex: 110 }}></div>
                                     {hours.map(hour => (
@@ -532,7 +604,9 @@ const BookingManagement = () => {
                                     ))}
                                 </div>
 
+                                {/* Cột các ngày */}
                                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+                                    {/* Header Ngày */}
                                     {weekDates.map((date, index) => {
                                         const isToday = formatDateForAPI(date) === formatDateForAPI(new Date());
                                         return (
@@ -543,6 +617,7 @@ const BookingManagement = () => {
                                         );
                                     })}
 
+                                    {/* Nội dung Grid */}
                                     {weekDates.map((date, dayIndex) => {
                                         const dayBookings = getBookingsForDate(date);
                                         const segments = createTimeSegments(dayBookings);
@@ -573,6 +648,8 @@ const BookingManagement = () => {
                     )}
                 </div>
             </div>
+
+            {/* Hover Tooltip */}
             {hoveredSegment && (
                 <div className="position-fixed bg-dark text-white p-2 rounded shadow" style={{ left: `${mousePosition.x + 15}px`, top: `${mousePosition.y + 15}px`, zIndex: 9999, fontSize: '0.85rem', pointerEvents: 'none', maxWidth: '300px' }}>
                     <div className="fw-bold mb-1">{hoveredSegment.start.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - {hoveredSegment.end.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</div>
@@ -584,6 +661,8 @@ const BookingManagement = () => {
                     </div>
                 </div>
             )}
+
+            {/* Booking List Popup */}
             {showBookingListPopup && (
                 <>
                     <div className="position-fixed top-0 start-0 w-100 h-100" style={{ zIndex: 1040 }} onClick={() => setShowBookingListPopup(false)}></div>
@@ -608,6 +687,8 @@ const BookingManagement = () => {
                     </div>
                 </>
             )}
+
+            {/* MODAL CHI TIẾT BOOKING */}
             {showDetailModal && selectedBooking && (
                 <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
                     <div className="modal-dialog modal-dialog-centered modal-lg">
@@ -634,7 +715,19 @@ const BookingManagement = () => {
                                                 <tr><th style={{ width: '40%' }}>Thời gian:</th><td><i className="fas fa-clock me-2"></i>{new Date(selectedBooking.scheduledAt).toLocaleString('vi-VN')}</td></tr>
                                                 <tr><th>Kết thúc dự kiến:</th><td>{new Date(selectedBooking.expectedEndTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</td></tr>
                                                 <tr><th>Tổng tiền:</th><td><strong className="text-success fs-5">{formatCurrency(selectedBooking.totalPrice)}</strong></td></tr>
-                                                <tr><th>Ngày tạo:</th><td>{new Date(selectedBooking.createAt).toLocaleDateString('vi-VN')}</td></tr>
+                                                
+                                                {/* TRƯỜNG MỚI: HIỂN THỊ TÌNH TRẠNG THANH TOÁN */}
+                                                <tr>
+                                                    <th>Thanh toán:</th>
+                                                    <td>
+                                                        {selectedBooking.paid ? (
+                                                            <span className="badge bg-success"><i className="fas fa-check-circle me-1"></i> Đã thanh toán ({selectedBooking.paymentMethod})</span>
+                                                        ) : (
+                                                            <span className="badge bg-warning text-dark"><i className="fas fa-clock me-1"></i> Chưa thu tiền</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+
                                             </tbody>
                                         </table>
                                     </div>
@@ -650,13 +743,15 @@ const BookingManagement = () => {
                                     <div className="mt-3"><h6 className="fw-bold"><i className="fas fa-sticky-note me-2"></i>Ghi chú:</h6><div className="alert alert-info mb-0"><i className="fas fa-info-circle me-2"></i>{selectedBooking.notes}</div></div>
                                 )}
                             </div>
+                            
+                            {/* --- NÚT THAO TÁC CỦA ADMIN --- */}
                             <div className="modal-footer d-flex justify-content-between bg-light">
                                 <div>
-                                    {(selectedBooking.bookingStatus === 0 || selectedBooking.bookingStatus === 1) && (
+                                    {(selectedBooking.bookingStatus <= 2) && (
                                         <>
                                             <button type="button" className="btn btn-outline-danger me-2 fw-bold" onClick={handleDeleteBooking} disabled={isDeleting || updatingStatus}>
                                                 {isDeleting ? <span className="spinner-border spinner-border-sm me-1"></span> : <i className="fas fa-trash-alt me-2"></i>}
-                                                Xóa lịch
+                                                Hủy lịch
                                             </button>
                                             <button type="button" className="btn btn-outline-primary fw-bold" onClick={handleOpenEditBooking} disabled={updatingStatus}>
                                                 <i className="fas fa-edit me-2"></i>Chỉnh sửa
@@ -665,18 +760,41 @@ const BookingManagement = () => {
                                     )}
                                 </div>
                                 <div>
-                                    {selectedBooking.bookingStatus === 1 && (
-                                        <button type="button" className="btn btn-info fw-bold me-2 text-white" onClick={() => handleUpdateStatus('start')} disabled={updatingStatus}>
-                                            {updatingStatus ? <span className="spinner-border spinner-border-sm me-1"></span> : <i className="fas fa-play me-2"></i>}
-                                            Bắt đầu làm
+                                    {/* Duyệt thủ công */}
+                                    {(selectedBooking.bookingStatus === 0 || selectedBooking.bookingStatus === 1) && (
+                                        <button type="button" className="btn btn-success fw-bold me-2" onClick={() => handleUpdateStatus('confirm')} disabled={updatingStatus}>
+                                            Xác nhận (Gửi QR)
                                         </button>
                                     )}
+
+                                    {/* Bắt đầu làm */}
                                     {selectedBooking.bookingStatus === 2 && (
-                                        <button type="button" className="btn btn-success fw-bold me-2" onClick={() => handleUpdateStatus('complete')} disabled={updatingStatus}>
-                                            {updatingStatus ? <span className="spinner-border spinner-border-sm me-1"></span> : <i className="fas fa-check-double me-2"></i>}
-                                            Hoàn thành
+                                        <button type="button" className="btn btn-info fw-bold me-2 text-white" onClick={() => handleUpdateStatus('start')} disabled={updatingStatus}>
+                                            {updatingStatus ? <span className="spinner-border spinner-border-sm me-1"></span> : <i className="fas fa-play me-2"></i>} Bắt đầu làm
                                         </button>
                                     )}
+                                    
+                                    {/* Khách đã thanh toán -> Nút bấm Hoàn thành luôn (Không bật Popup hỏi tiền) */}
+                                    {selectedBooking.bookingStatus === 3 && selectedBooking.paid && (
+                                        <button type="button" className="btn btn-success fw-bold me-2" onClick={() => handleUpdateStatus('complete')} disabled={updatingStatus}>
+                                            {updatingStatus ? <span className="spinner-border spinner-border-sm me-1"></span> : <i className="fas fa-check-double me-2"></i>} Hoàn thành
+                                        </button>
+                                    )}
+
+                                    {/* Khách chưa thanh toán -> Nút Hoàn Thành & Thu Tiền (Bật Popup hỏi tiền) */}
+                                    {selectedBooking.bookingStatus === 3 && !selectedBooking.paid && (
+                                        <button type="button" className="btn btn-success fw-bold me-2" onClick={() => setShowPaymentModal(true)} disabled={updatingStatus}>
+                                            {updatingStatus ? <span className="spinner-border spinner-border-sm me-1"></span> : <i className="fas fa-hand-holding-usd me-2"></i>} Hoàn thành & Thu tiền
+                                        </button>
+                                    )}
+
+                                    {/* Khách boom hàng */}
+                                    {selectedBooking.bookingStatus === 2 && (
+                                        <button type="button" className="btn btn-danger fw-bold me-2" onClick={() => handleUpdateStatus('noshow')} disabled={updatingStatus}>
+                                            Báo vắng
+                                        </button>
+                                    )}
+
                                     <button type="button" className="btn btn-secondary" onClick={() => setShowDetailModal(false)}>Đóng</button>
                                 </div>
                             </div>
@@ -684,6 +802,43 @@ const BookingManagement = () => {
                     </div>
                 </div>
             )}
+
+            {/* =======================================================
+                MODAL GHI NHẬN THANH TOÁN TẠI QUẦY (HIỆN KHI BẤM HOÀN THÀNH & THU TIỀN)
+               ======================================================== */}
+            {showPaymentModal && selectedBooking && (
+                <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1070 }}>
+                    <div className="modal-dialog modal-sm modal-dialog-centered">
+                        <div className="modal-content shadow-lg">
+                            <div className="modal-header bg-success text-white">
+                                <h6 className="modal-title fw-bold">Xác nhận Thu tiền</h6>
+                                <button type="button" className="btn-close btn-close-white" onClick={() => setShowPaymentModal(false)}></button>
+                            </div>
+                            <div className="modal-body text-center">
+                                <h4 className="text-danger fw-bold mb-3">{formatCurrency(selectedBooking.totalPrice)}</h4>
+                                
+                                <p className="small text-muted mb-3">
+                                    Vui lòng chọn hình thức khách vừa thanh toán tại quầy để chốt sổ:
+                                </p>
+
+                                <select className="form-select mb-3 border-success" value={selectedPaymentMethod} onChange={(e) => setSelectedPaymentMethod(e.target.value)}>
+                                    <option value="PAY_LATER">💵 Đã thu Tiền mặt</option>
+                                    <option value="MOMO_PREPAID">📱 Khách quét mã Momo</option>
+                                    <option value="VNPAY_PREPAID">🏦 Khách quét VNPay / Ngân hàng</option>
+                                </select>
+                            </div>
+                            <div className="modal-footer p-2">
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowPaymentModal(false)}>Hủy</button>
+                                <button type="button" className="btn btn-success btn-sm fw-bold" onClick={handlePaymentConfirm} disabled={updatingStatus}>
+                                    {updatingStatus ? <span className="spinner-border spinner-border-sm"></span> : <i className="fas fa-check me-1"></i>} Hoàn thành & Chốt sổ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL SCANNER */}
             {showScannerModal && (
                 <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 1060 }}>
                     <div className="modal-dialog modal-dialog-centered">
@@ -702,6 +857,8 @@ const BookingManagement = () => {
                     </div>
                 </div>
             )}
+
+            {/* MODAL CREATE/EDIT BOOKING */}
             {showCreateBookingModal && (
                 <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1040, overflowY: 'auto' }}>
                     <div className="modal-dialog modal-xl modal-dialog-scrollable">
@@ -797,13 +954,11 @@ const BookingManagement = () => {
                                                     </div>
                                                 )}
 
-                                                {/* Notes */}
                                                 <div className="mb-4">
                                                     <label className="form-label fw-bold text-secondary">5. Ghi chú</label>
                                                     <textarea className="form-control" rows="3" placeholder="Ghi chú thêm..." value={notes} onChange={(e) => setNotes(e.target.value)}></textarea>
                                                 </div>
 
-                                                {/* Submit Button */}
                                                 <div className="d-grid mt-4">
                                                     <button type="button" className={`btn ${isEditMode ? 'btn-warning' : 'btn-primary'} btn-lg fw-bold text-dark`} onClick={handleSubmitBooking} disabled={!selectedPet || selectedServices.length === 0 || !selectedSlot || submitting}>
                                                         {submitting ? <span className="spinner-border spinner-border-sm me-2"></span> : (isEditMode ? 'CẬP NHẬT LỊCH HẸN' : 'TẠO LỊCH HẸN')}
@@ -819,6 +974,7 @@ const BookingManagement = () => {
                 </div>
             )}
 
+            {/* MODAL SERVICE SELECTION */}
             {showServiceModal && (
                 <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
                     <div className="modal-dialog modal-lg modal-dialog-centered">
@@ -858,7 +1014,7 @@ const BookingManagement = () => {
                 </div>
             )}
 
-            {/* CÁC MODAL KHÁC (THÊM PET, CONFIRM, SUCCESS) */}
+            {/* ADD PET MODAL */}
             {showAddPetModal && (
                 <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
                     <div className="modal-dialog modal-dialog-centered">
@@ -887,6 +1043,7 @@ const BookingManagement = () => {
                 </div>
             )}
 
+            {/* CONFIRM BOOKING MODAL */}
             {showCreateConfirmModal && newBookingResult && (
                 <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
                     <div className="modal-dialog modal-lg modal-dialog-centered">
@@ -915,6 +1072,7 @@ const BookingManagement = () => {
                 </div>
             )}
 
+            {/* SUCCESS MODAL */}
             {showCreateSuccessModal && (
                 <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
                     <div className="modal-dialog modal-dialog-centered">
