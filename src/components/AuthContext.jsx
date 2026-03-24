@@ -68,6 +68,15 @@ export function AuthProvider({ children }) {
     return userRole === "Admin" || userRole === "ADMIN";
   };
 
+  const updateUser = (partialUserData) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const nextUser = normalizeUser({ ...prev, ...partialUserData });
+      localStorage.setItem("user", JSON.stringify(nextUser));
+      return nextUser;
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -77,6 +86,7 @@ export function AuthProvider({ children }) {
         login,
         logout,
         isAdmin,
+        updateUser,
       }}
     >
       {children}

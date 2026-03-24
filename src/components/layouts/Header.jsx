@@ -120,9 +120,9 @@ function Header() {
                                     </li>
                                     <li><hr className="dropdown-divider" /></li>
                                      <li>
-                                        <button className="dropdown-item">
-                                                Tài khoản
-                                        </button>
+                                        <NavLink to="/profile" className="dropdown-item">
+                                            Tài khoản
+                                        </NavLink>
                                     </li>
                                     <li>
                                         <button

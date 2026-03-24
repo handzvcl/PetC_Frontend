@@ -241,6 +241,7 @@ const BookingDetailPage = () => {
     Number(booking.totalPrice || 0),
   );
   const payablePreview = Math.max(0, Number(booking.totalPrice || 0) - voucherDiscountPreview);
+  const bookingPetId = booking.petId ?? booking.pet?.id ?? null;
 
   return (
     <div className="container py-4">
@@ -395,6 +396,15 @@ const BookingDetailPage = () => {
             {cancelling ? "Đang hủy..." : "Hủy lịch hẹn"}
           </button>
         )}
+        <button
+          type="button"
+          className="btn btn-outline-info"
+          onClick={() => navigate(`/bookings?petId=${bookingPetId}`)}
+          disabled={!bookingPetId}
+          title={bookingPetId ? "Xem lịch sử chăm sóc thú cưng" : "Không tìm thấy thú cưng"}
+        >
+          Lịch sử chăm sóc
+        </button>
         <button type="button" className="btn btn-primary" onClick={() => navigate("/booking")}>Đặt lịch mới</button>
         <button type="button" className="btn btn-outline-secondary" onClick={() => navigate("/")}>Về trang chủ</button>
       </div>

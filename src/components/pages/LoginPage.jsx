@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import { GoogleLogin } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode"; // Kiểm tra biến môi trường có được đọc đúng không
+
 function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,7 +33,10 @@ function LoginPage() {
         if (data && data.token) {
           try {
             const decoded = jwtDecode(data.token);
-            let tokenRole = decoded?.role || decoded?.roles || decoded?.['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'];
+            let tokenRole =
+              decoded?.role ||
+              decoded?.roles ||
+              decoded?.["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
             if (Array.isArray(tokenRole)) tokenRole = tokenRole[0];
 
             login({
@@ -45,16 +49,21 @@ function LoginPage() {
             });
 
             if (tokenRole === "Admin" || tokenRole === "ADMIN") {
-              navigate("/admin");
+              navigate("/admin", { replace: true });
             } else {
-              navigate(from, { replace: true });
+              const safeFrom = from?.startsWith("/admin") ? "/bookings" : from || "/";
+              navigate(safeFrom, { replace: true });
             }
           } catch (decodeError) {
             console.error("Lỗi giải mã token:", decodeError);
             alert("Token không hợp lệ!");
           }
         } else {
-          alert(result?.message || "Đăng nhập thất bại: Không nhận được token");
+          alert(
+            result?.message ||
+              result?.error ||
+              "Đăng nhập thất bại: Không nhận được token",
+          );
         }
       } catch (error) {
         alert("Lỗi hệ thống");
@@ -62,7 +71,10 @@ function LoginPage() {
     } else {
       try {
         const errorResult = await response.json();
-        alert("Đăng nhập thất bại: " + (errorResult.message || "Lỗi không xác định"));
+        alert(
+          "Đăng nhập thất bại: " +
+            (errorResult.message || errorResult.error || `HTTP ${response.status}`),
+        );
       } catch {
         alert("Đăng nhập thất bại");
       }
@@ -114,22 +126,50 @@ function LoginPage() {
         <form onSubmit={handleSubmit}>
           <div className="mb-3 text-start">
             <label className="form-label fw-bold">Tên đăng nhập</label>
-            <input className="form-control" name="username" placeholder="Nhập username" onChange={handleChange} disabled={loading} required autoComplete="username" value={form.username} />
+            <input
+              className="form-control"
+              name="username"
+              placeholder="Nhập username"
+              onChange={handleChange}
+              disabled={loading}
+              required
+              autoComplete="username"
+              value={form.username}
+            />
           </div>
 
           <div className="mb-3 text-start">
             <label className="form-label fw-bold">Mật khẩu</label>
-            <input type="password" className="form-control" name="password" placeholder="Nhập mật khẩu" onChange={handleChange} disabled={loading} required autoComplete="current-password" value={form.password} />
+            <input
+              type="password"
+              className="form-control"
+              name="password"
+              placeholder="Nhập mật khẩu"
+              onChange={handleChange}
+              disabled={loading}
+              required
+              autoComplete="current-password"
+              value={form.password}
+            />
           </div>
 
           <button className="btn btn-primary w-100 mb-3 py-2 fw-bold" disabled={loading}>
-            {loading ? <><span className="spinner-border spinner-border-sm me-2"></span>Đang xử lý...</> : "ĐĂNG NHẬP"}
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2"></span>
+                Đang xử lý...
+              </>
+            ) : (
+              "ĐĂNG NHẬP"
+            )}
           </button>
         </form>
 
         <div className="position-relative my-4">
           <hr />
-          <span className="position-absolute top-50 start-50 translate-middle bg-white px-2 text-muted small">hoặc đăng nhập bằng</span>
+          <span className="position-absolute top-50 start-50 translate-middle bg-white px-2 text-muted small">
+            hoặc đăng nhập bằng
+          </span>
         </div>
 
         <div className="d-flex justify-content-center mb-3">
@@ -144,7 +184,9 @@ function LoginPage() {
 
         <div className="text-center">
           <span className="text-muted">Chưa có tài khoản? </span>
-          <Link to="/register" className="text-decoration-none fw-bold">Đăng ký ngay</Link>
+          <Link to="/register" className="text-decoration-none fw-bold">
+            Đăng ký ngay
+          </Link>
         </div>
       </div>
     </div>

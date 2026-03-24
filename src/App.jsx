@@ -21,133 +21,173 @@ import StaffManagement from './components/pages/admin/StaffManagement';
 import ServiceManagement from './components/pages/admin/ServiceManagement';
 import BookingManagement from './components/pages/admin/BookingManagement';
 import RevenueManagement from './components/pages/admin/RevenueManagement';
-import UserManagement from './components/pages/admin/UserManagement';
-import ArticleManagement from './components/pages/admin/ArticleManagement';
-import ArticleList from './components/pages/ArticleList'; 
-import ArticleDetail from './components/pages/ArticleDetail';
 import StatisticManagement from './components/pages/admin/StatisticManagement';
+import PetCareHistoryManagement from './components/pages/admin/PetCareHistoryManagement';
+import MyPetsPage from './components/pages/MyPetsPage';
+import ProfilePage from './components/pages/ProfilePage';
+
 function About() {
-    return <h1>About Page</h1>;
+  return <h1>About Page</h1>;
 }
 
 function App() {
-    return (
-        <AuthProvider>
-            <BrowserRouter>
-                <Routes>
-                    {/* Public Routes */}
-                    <Route path="/register" element={<RegisterPage />} />
-                    <Route path="/login" element={<LoginPage />} />
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/login" element={<LoginPage />} />
 
-                    {/* User Routes with Header & Footer */}
-                    <Route path="/" element={
-                        <>
-                            <Header />
-                            <HomePage />
-                            <Footer />
-                        </>
-                    } />
-                    <Route path="/about" element={
-                        <>
-                            <Header />
-                            <About />
-                            <Footer />
-                        </>
-                    } />
-                    <Route path="/booking" element={
-                        <>
-                            <Header />
-                            <ProtectedRoute>
-                                <BookingPage />
-                            </ProtectedRoute>
-                            <Footer />
-                        </>
-                    } />
-                    <Route path="/articles" element={
-                        <>
-                            <Header />
-                            <ArticleList />
-                            <Footer />
-                        </>
-                    } />
-                    <Route path="/articles/:id" element={
-                        <>
-                            <Header />
-                            <ArticleDetail />
-                            <Footer />
-                        </>
-                    } />
-                    <Route path="/booking/details/:bookingId" element={
-                        <>
-                            <Header />
-                            <ProtectedRoute>
-                                <BookingDetailPage />
-                            </ProtectedRoute>
-                            <Footer />
-                        </>
-                    } />
-                    <Route path="/bookings" element={
-                        <>
-                            <Header />
-                            <ProtectedRoute>
-                                <BookingListPage />
-                            </ProtectedRoute>
-                            <Footer />
-                        </>
-                    } />
-                    <Route path="/booking/details/latest" element={
-                        <>
-                            <Header />
-                            <ProtectedRoute>
-                                <LatestBookingDetailPage />
-                            </ProtectedRoute>
-                            <Footer />
-                        </>
-                    } />
-                    <Route path="/vouchers" element={
-                        <>
-                            <Header />
-                            <ProtectedRoute>
-                                <VoucherPage />
-                            </ProtectedRoute>
-                            <Footer />
-                        </>
-                    } />
-                    <Route path="/payment/momo/return" element={
-                        <>
-                            <Header />
-                            <MomoReturnPage />
-                            <Footer />
-                        </>
-                    } />
-                    <Route path="/payment/vnpay/return" element={
-                        <>
-                            <Header />
-                            <VnpayReturnPage />
-                            <Footer />
-                        </>
-                    } />
+          {/* User Routes with Header & Footer */}
+          <Route
+            path="/"
+            element={
+              <>
+                <Header />
+                <HomePage />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              <>
+                <Header />
+                <About />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/booking"
+            element={
+              <>
+                <Header />
+                <ProtectedRoute>
+                  <BookingPage />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/my-pets"
+            element={
+              <>
+                <Header />
+                <ProtectedRoute>
+                  <MyPetsPage />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <>
+                <Header />
+                <ProtectedRoute>
+                  <ProfilePage />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/booking/details/:bookingId"
+            element={
+              <>
+                <Header />
+                <ProtectedRoute>
+                  <BookingDetailPage />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/bookings"
+            element={
+              <>
+                <Header />
+                <ProtectedRoute>
+                  <BookingListPage />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/booking/details/latest"
+            element={
+              <>
+                <Header />
+                <ProtectedRoute>
+                  <LatestBookingDetailPage />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/vouchers"
+            element={
+              <>
+                <Header />
+                <ProtectedRoute>
+                  <VoucherPage />
+                </ProtectedRoute>
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/payment/momo/return"
+            element={
+              <>
+                <Header />
+                <MomoReturnPage />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/payment/vnpay/return"
+            element={
+              <>
+                <Header />
+                <VnpayReturnPage />
+                <Footer />
+              </>
+            }
+          />
 
-                    {/* Admin Routes - NO Header/Footer */}
-                    <Route path="/admin" element={
-                        <AdminProtectedRoute>
-                            <AdminLayout />
-                        </AdminProtectedRoute>
-                    }>
-                        <Route index element={<AdminDashboard />} />
-                        <Route path="bookings" element={<BookingManagement />} />
-                        <Route path="users" element={<UserManagement />} />
-                        <Route path="services" element={<ServiceManagement/>} />
-                        <Route path="pet-types" element={<PetTypeManagement />} />
-                        <Route path="staff" element={<StaffManagement />} />
-                        <Route path="revenue" element={<RevenueManagement />} />
-                        <Route path="articles" element={<ArticleManagement />} />
-                        <Route path="reports" element={<StatisticManagement />} />
-                    </Route>
-                </Routes>
-            </BrowserRouter>
-        </AuthProvider>
-    )
+          {/* Admin Routes - NO Header/Footer */}
+          <Route
+            path="/admin"
+            element={
+              <AdminProtectedRoute>
+                <AdminLayout />
+              </AdminProtectedRoute>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="bookings" element={<BookingManagement />} />
+            <Route path="services" element={<ServiceManagement />} />
+            <Route path="pet-types" element={<PetTypeManagement />} />
+            <Route path="my-pets" element={<MyPetsPage />} />
+            <Route path="pet-care-history" element={<PetCareHistoryManagement />} />
+            <Route path="staff" element={<StaffManagement />} />
+            <Route path="revenue" element={<RevenueManagement />} />
+            <Route path="reports" element={<StatisticManagement />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
 
 export default App;

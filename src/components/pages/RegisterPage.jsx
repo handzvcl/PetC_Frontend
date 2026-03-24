@@ -59,7 +59,7 @@ function RegisterPage() {
                         alert("Token không hợp lệ!");
                     }
                 } else {
-                    alert(result?.message || "Đăng nhập thất bại: Không nhận được token");
+                    alert(result?.message || result?.error || "Đăng nhập thất bại: Không nhận được token");
                 }
             } catch (error) {
                 alert("Lỗi hệ thống");
@@ -67,7 +67,7 @@ function RegisterPage() {
         } else {
             try {
                 const errorResult = await response.json();
-                alert("Thất bại: " + (errorResult.message || "Lỗi không xác định"));
+                alert("Thất bại: " + (errorResult.message || errorResult.error || `HTTP ${response.status}`));
             } catch {
                 alert("Thất bại");
             }
