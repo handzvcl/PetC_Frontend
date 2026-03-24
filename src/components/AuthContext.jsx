@@ -7,11 +7,17 @@ const normalizeUser = (rawUser) => {
 
   const parsedId = Number(rawUser.userId ?? rawUser.id);
   const normalizedUserId = Number.isFinite(parsedId) ? parsedId : null;
+  const normalizedEmail =
+    rawUser.email ?? rawUser.userEmail ?? rawUser.mail ?? "";
+  const normalizedPhone =
+    rawUser.phone ?? rawUser.phoneNumber ?? rawUser.mobile ?? "";
 
   return {
     ...rawUser,
     userId: normalizedUserId,
     id: normalizedUserId,
+    email: normalizedEmail,
+    phone: normalizedPhone,
   };
 };
 

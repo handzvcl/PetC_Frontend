@@ -44,6 +44,7 @@ function RegisterPage() {
                             userId: data.userId || data.id || decoded?.userId || decoded?.id || null,
                             username: decoded?.preferred_username || data.userName || data.username,
                             email: decoded?.email || data.email,
+                            phone: data.phone || decoded?.phone_number || decoded?.phone || "",
                             role: tokenRole,
                             token: data.token,
                         });

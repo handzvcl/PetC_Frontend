@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
+import "./BookingPage.css";
 
 const BookingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  /* ===================== STATE ===================== */
   const [services, setServices] = useState([]);
   const [selectedServices, setSelectedServices] = useState([]);
   const [pets, setPets] = useState([]);
@@ -23,7 +26,6 @@ const BookingPage = () => {
   const [error, setError] = useState(null);
   const [petError, setPetError] = useState(null);
   const [slotError, setSlotError] = useState(null);
-  const [showServiceModal, setShowServiceModal] = useState(false);
   const [showAddPetModal, setShowAddPetModal] = useState(false);
   const [bookingResult, setBookingResult] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -34,22 +36,33 @@ const BookingPage = () => {
   const [voucherError, setVoucherError] = useState(null);
   const [selectedVoucherCode, setSelectedVoucherCode] = useState("");
 
-  // New pet form states
+  // Payment category: "online" | "store"
+  const [paymentCategory, setPaymentCategory] = useState("online");
+
+  // Add pet form
   const [newPet, setNewPet] = useState({
     name: "",
     petTypeId: "",
     age: "",
+    breed: "",
+    weight: "",
   });
   const [addingPet, setAddingPet] = useState(false);
   const [addPetError, setAddPetError] = useState(null);
 
-  // Fetch services from API
+  // Personal info
+  const [phone, setPhone] = useState(user?.phone || "");
+
+  // Form-level error
+  const [formError, setFormError] = useState(null);
+
+  /* =================== EFFECTS =================== */
   useEffect(() => {
     fetchServices();
     fetchUserPets();
+    fetchPetTypes();
   }, [user]);
 
-  // Fetch available slots when date and services change
   useEffect(() => {
     if (selectedDate && selectedServices.length > 0) {
       fetchAvailableSlots();
@@ -59,13 +72,16 @@ const BookingPage = () => {
     }
   }, [selectedDate, selectedServices]);
 
+  useEffect(() => {
+    setPhone(user?.phone || "");
+  }, [user]);
+
+  /* ================= API FUNCTIONS ================ */
   const fetchServices = async () => {
     try {
       setLoading(true);
       const response = await fetch("http://localhost:8080/api/service");
-      if (!response.ok) {
-        throw new Error("Không thể tải danh sách dịch vụ");
-      }
+      if (!response.ok) throw new Error("Không thể tải danh sách dịch vụ");
       const result = await response.json();
       if (result.success) {
         setServices(result.data);
@@ -75,7 +91,6 @@ const BookingPage = () => {
       }
     } catch (err) {
       setError(err.message);
-      console.error("Error fetching services:", err);
     } finally {
       setLoading(false);
     }
@@ -90,19 +105,11 @@ const BookingPage = () => {
         setPetError("Vui lòng đăng nhập để tải danh sách thú cưng");
         return;
       }
-
-      const response = await fetch(`http://localhost:8080/api/pet/user/${currentUserId}`, {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Không thể tải danh sách thú cưng");
-      }
-
+      const response = await fetch(
+        `http://localhost:8080/api/pet/user/${currentUserId}`,
+        { method: "GET", credentials: "include", headers: { "Content-Type": "application/json" } },
+      );
+      if (!response.ok) throw new Error("Không thể tải danh sách thú cưng");
       const result = await response.json();
       if (result.success) {
         setPets(result.data);
@@ -112,7 +119,6 @@ const BookingPage = () => {
       }
     } catch (err) {
       setPetError(err.message);
-      console.error("Error fetching pets:", err);
     } finally {
       setLoadingPets(false);
     }
@@ -122,11 +128,7 @@ const BookingPage = () => {
     try {
       setLoadingPetTypes(true);
       const response = await fetch("http://localhost:8080/api/pet-type");
-
-      if (!response.ok) {
-        throw new Error("Không thể tải danh sách loại thú cưng");
-      }
-
+      if (!response.ok) throw new Error("Không thể tải danh sách loại thú cưng");
       const result = await response.json();
       if (result.success) {
         setPetTypes(result.data);
@@ -135,7 +137,6 @@ const BookingPage = () => {
       }
     } catch (err) {
       console.error("Error fetching pet types:", err);
-      setAddPetError("Không thể tải danh sách loại thú cưng");
     } finally {
       setLoadingPetTypes(false);
     }
@@ -145,21 +146,14 @@ const BookingPage = () => {
     try {
       setLoadingSlots(true);
       setSlotError(null);
-
-      // Calculate total duration from selected services
       const totalDuration = selectedServices.reduce(
-        (sum, service) => sum + service.durationInMinutes,
+        (sum, s) => sum + s.durationInMinutes,
         0,
       );
-
       const response = await fetch(
         `http://localhost:8080/api/bookings/available-slots?selectedDay=${selectedDate}&durationInMinutes=${totalDuration}`,
       );
-
-      if (!response.ok) {
-        throw new Error("Không thể tải danh sách khung giờ");
-      }
-
+      if (!response.ok) throw new Error("Không thể tải danh sách khung giờ");
       const result = await response.json();
       if (result.success) {
         setAvailableSlots(result.data);
@@ -168,7 +162,6 @@ const BookingPage = () => {
       }
     } catch (err) {
       setSlotError(err.message);
-      console.error("Error fetching slots:", err);
       setAvailableSlots([]);
     } finally {
       setLoadingSlots(false);
@@ -179,20 +172,14 @@ const BookingPage = () => {
     try {
       setLoadingVouchers(true);
       setVoucherError(null);
-
       const response = await fetch("http://localhost:8080/api/bookings/me/vouchers", {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       });
-
       const result = await response.json().catch(() => null);
       if (!response.ok || !result?.success) {
         throw new Error(result?.message || "Không thể tải danh sách voucher");
       }
-
       setVouchers(result.data || []);
     } catch (err) {
       setVoucherError(err.message);
@@ -202,51 +189,40 @@ const BookingPage = () => {
     }
   };
 
+  /* ================== HANDLERS =================== */
   const handleOpenAddPetModal = () => {
+    setAddPetError(null);
     setShowAddPetModal(true);
-    fetchPetTypes();
+    if (petTypes.length === 0) fetchPetTypes();
   };
 
   const handleAddPet = async (e) => {
     e.preventDefault();
-
     try {
       setAddingPet(true);
       setAddPetError(null);
-
       const currentUserId = Number(user?.userId ?? user?.id);
-      if (!Number.isFinite(currentUserId)) {
+      if (!Number.isFinite(currentUserId))
         throw new Error("Không xác định được người dùng hiện tại");
-      }
-
-      const response = await fetch(`http://localhost:8080/api/pet/user/${currentUserId}`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `http://localhost:8080/api/pet/user/${currentUserId}`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: newPet.name,
+            petTypeId: newPet.petTypeId,
+            age: parseInt(newPet.age),
+          }),
         },
-        body: JSON.stringify({
-          name: newPet.name,
-          petTypeId: newPet.petTypeId,
-          age: parseInt(newPet.age),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Không thể thêm thú cưng");
-      }
-
-      // Reset form
-      setNewPet({ name: "", petTypeId: "", age: "" });
-
-      // Reload pets list
+      );
+      if (!response.ok) throw new Error("Không thể thêm thú cưng");
+      setNewPet({ name: "", petTypeId: "", age: "", breed: "", weight: "" });
       await fetchUserPets();
-
-      // Close modal
       setShowAddPetModal(false);
     } catch (err) {
       setAddPetError(err.message);
-      console.error("Error adding pet:", err);
     } finally {
       setAddingPet(false);
     }
@@ -254,55 +230,44 @@ const BookingPage = () => {
 
   const handleSubmitBooking = async () => {
     if (!selectedPet || selectedServices.length === 0 || !selectedSlot) {
-      alert("Vui lòng điền đầy đủ thông tin!");
+      setFormError("Vui lòng chọn đầy đủ thú cưng, dịch vụ và khung giờ trước khi đặt lịch.");
       return;
     }
+    setFormError(null);
 
     try {
       setSubmitting(true);
-
       const currentUserId = Number(user?.userId ?? user?.id);
-      if (!Number.isFinite(currentUserId)) {
+      if (!Number.isFinite(currentUserId))
         throw new Error("Vui lòng đăng nhập trước khi đặt lịch");
-      }
 
       const response = await fetch(
         `http://localhost:8080/api/bookings/user/${currentUserId}`,
         {
           method: "POST",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             scheduledAt: selectedSlot.startAt,
-            notes: notes,
+            notes,
             petId: selectedPet,
             services: selectedServices.map((s) => s.id),
           }),
         },
       );
-
-      if (!response.ok) {
-        throw new Error("Không thể tạo lịch hẹn");
-      }
-
+      if (!response.ok) throw new Error("Không thể tạo lịch hẹn");
       const result = await response.json();
       if (result.success) {
         const token = user?.token;
-        if (token) {
-          await fetchMyVouchers(token);
-        }
+        if (token) await fetchMyVouchers(token);
         setSelectedVoucherCode("");
-        setPaymentMethod("MOMO_PREPAID");
         setBookingResult(result.data);
         setShowConfirmModal(true);
       } else {
         throw new Error(result.message);
       }
     } catch (err) {
-      alert("Lỗi: " + err.message);
-      console.error("Error creating booking:", err);
+      setFormError("Lỗi: " + err.message);
     } finally {
       setSubmitting(false);
     }
@@ -311,11 +276,11 @@ const BookingPage = () => {
   const handleConfirmBooking = async () => {
     try {
       setConfirming(true);
-
       const token = user?.token;
-      if (!token) {
-        throw new Error("Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.");
-      }
+      if (!token) throw new Error("Phiên đăng nhập đã hết. Vui lòng đăng nhập lại.");
+
+      const finalMethod =
+        paymentCategory === "store" ? "PAY_LATER" : paymentMethod;
 
       const response = await fetch(
         `http://localhost:8080/api/payments/booking/${bookingResult.id}/init`,
@@ -326,28 +291,23 @@ const BookingPage = () => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            paymentMethod,
+            paymentMethod: finalMethod,
             voucherCode:
-              paymentMethod === "MOMO_PREPAID" || paymentMethod === "VNPAY_PREPAID"
-                ? (selectedVoucherCode || null)
+              finalMethod === "MOMO_PREPAID" || finalMethod === "VNPAY_PREPAID"
+                ? selectedVoucherCode || null
                 : null,
           }),
         },
       );
 
       const result = await response.json().catch(() => null);
-      if (!response.ok || !result?.success) {
+      if (!response.ok || !result?.success)
         throw new Error(result?.message || "Không thể khởi tạo thanh toán");
-      }
-
-      if (!result.success) {
-        throw new Error(result.message || "Khởi tạo thanh toán thất bại");
-      }
 
       const paymentData = result.data;
 
       if (
-        (paymentMethod === "MOMO_PREPAID" || paymentMethod === "VNPAY_PREPAID") &&
+        (finalMethod === "MOMO_PREPAID" || finalMethod === "VNPAY_PREPAID") &&
         paymentData?.paymentUrl
       ) {
         window.location.href = paymentData.paymentUrl;
@@ -358,7 +318,6 @@ const BookingPage = () => {
       navigate(`/booking/details/${bookingResult.id}?fromPayment=0&method=PAY_LATER`);
     } catch (err) {
       alert("Lỗi xác nhận: " + err.message);
-      console.error("Error confirming booking:", err);
     } finally {
       setConfirming(false);
     }
@@ -372,57 +331,61 @@ const BookingPage = () => {
     navigate("/");
   };
 
-  // Toggle service selection
+  /* ============== SERVICE HELPERS ================= */
   const toggleServiceSelection = (service) => {
-    const isSelected = selectedServices.find((s) => s.id === service.id);
-
-    if (isSelected) {
-      setSelectedServices(selectedServices.filter((s) => s.id !== service.id));
-    } else {
-      setSelectedServices([...selectedServices, service]);
-    }
+    setSelectedServices((prev) =>
+      prev.find((s) => s.id === service.id)
+        ? prev.filter((s) => s.id !== service.id)
+        : [...prev, service],
+    );
   };
 
-  // Check if service is selected
-  const isServiceSelected = (serviceId) => {
-    return selectedServices.find((s) => s.id === serviceId) !== undefined;
+  const isServiceSelected = (serviceId) =>
+    selectedServices.some((s) => s.id === serviceId);
+
+  const getServiceIcon = (name) => {
+    const n = (name || "").toLowerCase();
+    if (n.includes("tắm") || n.includes("bath")) return "fa-shower";
+    if (n.includes("cắt") || n.includes("tỉa") || n.includes("grooming"))
+      return "fa-scissors";
+    if (n.includes("khám") || n.includes("check")) return "fa-stethoscope";
+    if (n.includes("tiêm") || n.includes("vaccine")) return "fa-syringe";
+    if (n.includes("spa") || n.includes("massage")) return "fa-spa";
+    if (n.includes("nha") || n.includes("răng")) return "fa-tooth";
+    return "fa-paw";
   };
 
-  // Remove service from selected list
-  const handleRemoveService = (serviceId) => {
-    setSelectedServices(selectedServices.filter((s) => s.id !== serviceId));
-  };
-
-  // Format time for display
-  const formatTime = (dateTimeString) => {
-    const date = new Date(dateTimeString);
-    return date.toLocaleTimeString("vi-VN", {
+  /* =============== FORMAT HELPERS ================= */
+  const formatTime = (dateTimeString) =>
+    new Date(dateTimeString).toLocaleTimeString("vi-VN", {
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
 
-  // Format date time for display
-  const formatDateTime = (dateTimeString) => {
-    const date = new Date(dateTimeString);
-    return date.toLocaleString("vi-VN", {
+  const formatDateTime = (dateTimeString) =>
+    new Date(dateTimeString).toLocaleString("vi-VN", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
     });
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr + "T00:00:00");
+    return d.toLocaleDateString("vi-VN", {
+      weekday: "long",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
   };
 
-  // Get today's date in YYYY-MM-DD format for min attribute
-  const getTodayDate = () => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  };
+  const getTodayDate = () => new Date().toISOString().split("T")[0];
 
-  // Get booking status text
   const getBookingStatusText = (status) => {
-    const statusMap = {
+    const map = {
       0: "Chờ xác nhận",
       1: "Chờ thanh toán",
       2: "Đã xác nhận",
@@ -431,395 +394,744 @@ const BookingPage = () => {
       5: "Đã hủy",
       6: "Vắng mặt",
     };
-    return statusMap[status] || "Không xác định";
+    return map[status] || "Không xác định";
   };
 
-  const selectedVoucher = vouchers.find((voucher) => voucher.code === selectedVoucherCode);
+  const getPetTypeName = (petTypeId) => {
+    const t = petTypes.find((pt) => pt.id === Number(petTypeId));
+    return t ? t.name : "";
+  };
+
+  /* ============== COMPUTED VALUES ================= */
+  const selectedPetInfo = pets.find((p) => p.id === Number(selectedPet));
+  const totalPrice = selectedServices.reduce((sum, s) => sum + s.price, 0);
+  const totalDuration = selectedServices.reduce(
+    (sum, s) => sum + s.durationInMinutes,
+    0,
+  );
+
+  const isOnlinePayment =
+    paymentMethod === "MOMO_PREPAID" || paymentMethod === "VNPAY_PREPAID";
+
+  const selectedVoucher = vouchers.find(
+    (v) => v.code === selectedVoucherCode,
+  );
   const voucherDiscountPreview =
-    paymentMethod === "MOMO_PREPAID" || paymentMethod === "VNPAY_PREPAID"
-      ? Math.min(Number(selectedVoucher?.remainingAmount || 0), Number(bookingResult?.totalPrice || 0))
+    isOnlinePayment && paymentCategory === "online"
+      ? Math.min(
+          Number(selectedVoucher?.remainingAmount || 0),
+          Number(bookingResult?.totalPrice || 0),
+        )
       : 0;
-  const payablePreview = Math.max(0, Number(bookingResult?.totalPrice || 0) - voucherDiscountPreview);
+  const payablePreview = Math.max(
+    0,
+    Number(bookingResult?.totalPrice || 0) - voucherDiscountPreview,
+  );
 
+  /* =================== RENDER ==================== */
   return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-8">
-          <div className="card">
-            <div className="card-header bg-primary text-white">
-              <h3 className="mb-0">Đặt lịch chăm sóc thú cưng</h3>
-            </div>
-            <div className="card-body">
-              {/* Pet Selection */}
-              <div className="mb-3">
-                <label className="form-label fw-bold">
-                  Chọn thú cưng <span className="text-danger">*</span>
-                </label>
-                {loadingPets ? (
-                  <div className="text-center py-3">
-                    <div
-                      className="spinner-border spinner-border-sm text-primary"
-                      role="status"
-                    >
-                      <span className="visually-hidden">Đang tải...</span>
-                    </div>
-                  </div>
-                ) : petError ? (
-                  <div className="alert alert-danger">
-                    {petError}
-                    <button
-                      className="btn btn-sm btn-outline-danger ms-3"
-                      onClick={fetchUserPets}
-                    >
-                      Thử lại
-                    </button>
-                  </div>
-                ) : pets.length === 0 ? (
-                  <div className="alert alert-warning">
-                    Bạn chưa có thú cưng nào. Vui lòng thêm thú cưng trước khi
-                    đặt lịch.
-                    <div className="mt-2">
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-primary"
-                        onClick={handleOpenAddPetModal}
-                      >
-                        + Thêm thú cưng
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="d-flex gap-2">
-                    <select
-                      className="form-select"
-                      value={selectedPet}
-                      onChange={(e) => setSelectedPet(e.target.value)}
-                    >
-                      <option value="">-- Chọn thú cưng --</option>
-                      {pets.map((pet) => (
-                        <option key={pet.id} value={pet.id}>
-                          {pet.name} ({pet.age} tuổi)
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className="btn btn-outline-primary"
-                      onClick={handleOpenAddPetModal}
-                    >
-                      + Thêm mới
-                    </button>
-                  </div>
-                )}
+    <div className="booking-page">
+      <div className="container">
+        {/* -------- Page Header -------- */}
+        <div className="page-header">
+          <h2>
+             Đặt lịch chăm sóc thú cưng
+          </h2>
+          <p>Chọn dịch vụ và thời gian phù hợp cho bé cưng của bạn</p>
+        </div>
+
+        <div className="row g-4">
+          {/* ======================== LEFT COLUMN ======================== */}
+          <div className="col-lg-8">
+            {/* ---------- Section 1: Personal Info ---------- */}
+            <div className="bp-section">
+              <div className="bp-section-title">
+                <span className="bp-step">1</span>
+                <i className="fas fa-user"></i>
+                Thông tin cá nhân
               </div>
 
-              <hr />
-
-              {/* Service Selection Button */}
-              <div className="mb-3">
-                <label className="form-label fw-bold">
-                  Chọn dịch vụ <span className="text-danger">*</span>
-                </label>
-                <div>
-                  <button
-                    type="button"
-                    className="btn btn-outline-primary"
-                    onClick={() => setShowServiceModal(true)}
-                  >
-                    + Chọn dịch vụ
-                  </button>
-                </div>
-              </div>
-
-              {/* Selected Services Tags */}
-              {selectedServices.length > 0 && (
-                <div className="mb-3">
-                  <label className="form-label fw-bold">Dịch vụ đã chọn:</label>
-                  <div className="d-flex flex-wrap gap-2">
-                    {selectedServices.map((service) => (
-                      <span
-                        key={service.id}
-                        className="badge bg-primary fs-6 d-flex align-items-center gap-2"
-                      >
-                        <span>{service.name}</span>
-                        <button
-                          type="button"
-                          className="btn-close btn-close-white"
-                          aria-label="Remove"
-                          onClick={() => handleRemoveService(service.id)}
-                        ></button>
-                      </span>
-                    ))}
+              {user ? (
+                <>
+                  <div className="bp-autofill-badge">
+                    <i className="fas fa-check-circle"></i> Tự động điền từ tài khoản
                   </div>
+                  <div className="row g-3">
+                    <div className="col-md-4">
+                      <label className="bp-label">Họ tên</label>
+                      <input
+                        className="bp-input"
+                        value={user.username || ""}
+                        readOnly
+                      />
+                    </div>
+                   
+                  </div>
+                </>
+              ) : (
+                <div className="bp-alert bp-alert-info">
+                  <i className="fas fa-info-circle"></i>
+                  Vui lòng{" "}
+                  <a href="/login" style={{ fontWeight: 600 }}>
+                    đăng nhập
+                  </a>{" "}
+                  để tiếp tục đặt lịch.
                 </div>
               )}
+            </div>
 
-              <hr />
+            {/* ---------- Section 2: Pet ---------- */}
+            <div className="bp-section">
+              <div className="bp-section-title">
+                <span className="bp-step">2</span>
+                <i className="fas fa-paw"></i>
+                Thông tin thú cưng
+              </div>
 
-              {/* Date Selection */}
-              <div className="mb-3">
-                <label className="form-label fw-bold">
-                  Chọn ngày <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="date"
-                  className="form-control"
-                  value={selectedDate}
-                  min={getTodayDate()}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  disabled={selectedServices.length === 0}
-                />
-                {selectedServices.length === 0 && (
-                  <small className="text-muted">
-                    Vui lòng chọn dịch vụ trước
-                  </small>
+              {loadingPets ? (
+                <div className="text-center py-3">
+                  <div
+                    className="spinner-border spinner-border-sm text-primary"
+                    role="status"
+                  >
+                    <span className="visually-hidden">Đang tải...</span>
+                  </div>
+                </div>
+              ) : petError ? (
+                <div className="bp-alert bp-alert-danger">
+                  <i className="fas fa-exclamation-circle"></i>
+                  {petError}
+                  <button className="btn-sm-round ms-auto" onClick={fetchUserPets}>
+                    <i className="fas fa-redo"></i> Thử lại
+                  </button>
+                </div>
+              ) : pets.length === 0 ? (
+                <div className="bp-empty-state">
+                  <i className="fas fa-dog"></i>
+                  <p>
+                    Bạn chưa có thú cưng nào.
+                    <br />
+                    Hãy thêm thú cưng để đặt lịch chăm sóc.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn-sm-round btn-fill mt-2"
+                    onClick={handleOpenAddPetModal}
+                  >
+                    <i className="fas fa-plus"></i> Thêm thú cưng
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="d-flex gap-2 align-items-end">
+                    <div style={{ flex: 1 }}>
+                      <label className="bp-label">
+                        Chọn thú cưng <span className="required">*</span>
+                      </label>
+                      <select
+                        className="bp-select"
+                        value={selectedPet}
+                        onChange={(e) => setSelectedPet(e.target.value)}
+                      >
+                        <option value="">-- Chọn thú cưng --</option>
+                        {pets.map((pet) => (
+                          <option key={pet.id} value={pet.id}>
+                            {pet.name}
+                            {getPetTypeName(pet.petTypeId)
+                              ? ` (${getPetTypeName(pet.petTypeId)})`
+                              : ""}{" "}
+                            – {pet.age} tuổi
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-sm-round"
+                      style={{ marginBottom: "1px" }}
+                      onClick={handleOpenAddPetModal}
+                    >
+                      <i className="fas fa-plus"></i> Thêm mới
+                    </button>
+                  </div>
+
+                  {/* Selected pet info card */}
+                  {selectedPetInfo && (
+                    <div className="pet-info-card">
+                      <div className="pet-avatar-circle">
+                        <i className="fas fa-paw"></i>
+                      </div>
+                      <div className="pet-details">
+                        <strong>{selectedPetInfo.name}</strong>
+                        <span>
+                          {getPetTypeName(selectedPetInfo.petTypeId) || "Thú cưng"}{" "}
+                          &bull; {selectedPetInfo.age} tuổi
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* ---------- Section 3: Services ---------- */}
+            <div className="bp-section">
+              <div className="bp-section-title">
+                <span className="bp-step">3</span>
+                
+                Chọn dịch vụ
+                {selectedServices.length > 0 && (
+                  <span className="bp-badge bp-badge-primary ms-auto">
+                    {selectedServices.length} đã chọn
+                  </span>
                 )}
               </div>
 
-              {/* Time Slot Selection */}
+              {loading ? (
+                <div className="service-cards-grid">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div key={i} className="skeleton skeleton-card" />
+                  ))}
+                </div>
+              ) : error ? (
+                <div className="bp-alert bp-alert-danger">
+                  <i className="fas fa-exclamation-circle"></i>
+                  {error}
+                  <button className="btn-sm-round ms-auto" onClick={fetchServices}>
+                    <i className="fas fa-redo"></i> Thử lại
+                  </button>
+                </div>
+              ) : (
+                <div className="service-cards-grid">
+                  {services.map((service) => (
+                    <div
+                      key={service.id}
+                      className={`service-card${
+                        isServiceSelected(service.id) ? " selected" : ""
+                      }`}
+                      onClick={() => toggleServiceSelection(service)}
+                    >
+                      <span className="service-check">
+                        <i className="fas fa-check-circle"></i>
+                      </span>
+                      <div className="service-icon-box">
+                        <i
+                          className={`fas ${getServiceIcon(service.name)}`}
+                        ></i>
+                      </div>
+                      <div className="service-name">{service.name}</div>
+                      <div className="service-price">
+                        {service.price.toLocaleString("vi-VN")}đ
+                      </div>
+                      <div className="service-duration">
+                        <i className="far fa-clock"></i>{" "}
+                        {service.durationInMinutes} phút
+                      </div>
+                      {service.description && (
+                        <div className="service-desc">{service.description}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ---------- Section 4: Date & Time ---------- */}
+            <div className="bp-section">
+              <div className="bp-section-title">
+                <span className="bp-step">4</span>
+                <i className="fas fa-calendar-alt"></i>
+                Chọn ngày &amp; giờ
+                {selectedDate && selectedServices.length > 0 && (
+                  <button
+                    className="btn-reload ms-auto"
+                    onClick={fetchAvailableSlots}
+                    title="Tải lại khung giờ"
+                  >
+                    <i className="fas fa-sync-alt"></i> Tải lại
+                  </button>
+                )}
+              </div>
+
+              <div className="row g-3 mb-3">
+                <div className="col-md-6">
+                  <label className="bp-label">
+                    Ngày hẹn <span className="required">*</span>
+                  </label>
+                  <div className="bp-date-wrap">
+                    <i className="fas fa-calendar-day"></i>
+                    <input
+                      type="date"
+                      className="bp-input"
+                      value={selectedDate}
+                      min={getTodayDate()}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      disabled={selectedServices.length === 0}
+                    />
+                  </div>
+                  {selectedServices.length === 0 && (
+                    <small style={{ color: "#94a3b8", fontSize: "0.78rem" }}>
+                      Vui lòng chọn dịch vụ trước
+                    </small>
+                  )}
+                  {selectedDate && (
+                    <small
+                      style={{
+                        color: "#2563eb",
+                        fontSize: "0.8rem",
+                        display: "block",
+                        marginTop: "0.3rem",
+                      }}
+                    >
+                      {formatDate(selectedDate)}
+                    </small>
+                  )}
+                </div>
+              </div>
+
+              {/* Time Slots */}
               {selectedDate && selectedServices.length > 0 && (
-                <div className="mb-3">
-                  <label className="form-label fw-bold">
-                    Chọn khung giờ <span className="text-danger">*</span>
+                <>
+                  <label className="bp-label" style={{ marginBottom: "0.5rem" }}>
+                    Khung giờ <span className="required">*</span>
                   </label>
 
                   {loadingSlots ? (
-                    <div className="text-center py-3">
-                      <div
-                        className="spinner-border spinner-border-sm text-primary"
-                        role="status"
-                      >
-                        <span className="visually-hidden">Đang tải...</span>
-                      </div>
+                    <div className="slot-grid">
+                      {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                        <div key={i} className="skeleton skeleton-slot" />
+                      ))}
                     </div>
                   ) : slotError ? (
-                    <div className="alert alert-danger">{slotError}</div>
+                    <div className="bp-alert bp-alert-danger">
+                      <i className="fas fa-exclamation-circle"></i>
+                      {slotError}
+                    </div>
                   ) : availableSlots.length === 0 ? (
-                    <div className="alert alert-warning">
+                    <div className="bp-alert bp-alert-warning">
+                      <i className="fas fa-info-circle"></i>
                       Không có khung giờ trống cho ngày này.
                     </div>
                   ) : (
-                    <div className="row g-2">
+                    <div className="slot-grid">
                       {availableSlots.map((slot, index) => (
-                        <div key={index} className="col-md-3 col-4">
-                          <button
-                            type="button"
-                            className={`btn w-100 ${
-                              selectedSlot?.startAt === slot.startAt
-                                ? "btn-primary"
-                                : "btn-outline-primary"
-                            }`}
-                            onClick={() => setSelectedSlot(slot)}
-                          >
-                            {formatTime(slot.startAt)}
-                          </button>
-                        </div>
+                        <button
+                          key={index}
+                          type="button"
+                          className={`slot-btn${
+                            selectedSlot?.startAt === slot.startAt
+                              ? " active"
+                              : ""
+                          }`}
+                          onClick={() => setSelectedSlot(slot)}
+                        >
+                          {formatTime(slot.startAt)}
+                          <span className="slot-label">Còn trống</span>
+                        </button>
                       ))}
                     </div>
                   )}
+                </>
+              )}
+            </div>
+
+            {/* ---------- Section 5: Notes ---------- */}
+            <div className="bp-section">
+              <div className="bp-section-title">
+                <span className="bp-step">5</span>
+                <i className="fas fa-sticky-note"></i>
+                Ghi chú
+              </div>
+              <textarea
+                className="bp-textarea"
+                rows="3"
+                placeholder="Ví dụ: Bé chó hơi dữ, cần rọ mõm khi tắm..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              ></textarea>
+              {notes.toLowerCase().includes("dữ") && (
+                <div
+                  className="bp-alert bp-alert-warning mt-2"
+                  style={{ fontSize: "0.82rem" }}
+                >
+                  <i className="fas fa-exclamation-triangle"></i>
+                  Lưu ý: thú cưng có thể hung dữ – nhân viên sẽ chuẩn bị dụng cụ
+                  bảo hộ.
                 </div>
               )}
+            </div>
 
-              <hr />
-
-              {/* Notes */}
-              <div className="mb-3">
-                <label className="form-label fw-bold">Ghi chú</label>
-                <textarea
-                  className="form-control"
-                  rows="3"
-                  placeholder="Ví dụ: Bé chó hơi dữ, cần rọ mõm khi tắm..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                ></textarea>
+            {/* ---------- Section 6: Payment ---------- */}
+            <div className="bp-section">
+              <div className="bp-section-title">
+                <span className="bp-step">6</span>
+                <i className="fas fa-credit-card"></i>
+                Phương thức thanh toán
               </div>
 
-              <hr />
-
-              {/* Submit Button */}
-              <div className="d-grid">
-                <button
-                  type="button"
-                  className="btn btn-primary btn-lg"
-                  onClick={handleSubmitBooking}
-                  disabled={
-                    !selectedPet ||
-                    selectedServices.length === 0 ||
-                    !selectedSlot ||
-                    submitting
-                  }
+              <div className="d-flex flex-column gap-3">
+                {/* Option: Store */}
+                <div
+                  className={`payment-option${
+                    paymentCategory === "store" ? " active" : ""
+                  }`}
+                  onClick={() => {
+                    setPaymentCategory("store");
+                    setPaymentMethod("PAY_LATER");
+                  }}
                 >
-                  {submitting ? (
-                    <>
-                      <span
-                        className="spinner-border spinner-border-sm me-2"
-                        role="status"
-                        aria-hidden="true"
-                      ></span>
-                      Đang xử lý...
-                    </>
-                  ) : (
-                    "Đặt lịch hẹn"
-                  )}
-                </button>
+                  <div
+                    className="payment-icon-circle"
+                    style={{ background: "#fef3c7", color: "#d97706" }}
+                  >
+                    <i className="fas fa-store"></i>
+                  </div>
+                  <div>
+                    <div className="payment-name">Thanh toán tại cửa hàng</div>
+                    <div className="payment-desc">
+                      Thanh toán sau khi hoàn thành dịch vụ
+                    </div>
+                  </div>
+                  <div className="ms-auto">
+                    <input
+                      type="radio"
+                      className="form-check-input"
+                      checked={paymentCategory === "store"}
+                      onChange={() => {}}
+                    />
+                  </div>
+                </div>
+
+                {/* Option: Online */}
+                <div
+                  className={`payment-option${
+                    paymentCategory === "online" ? " active" : ""
+                  }`}
+                  onClick={() => {
+                    setPaymentCategory("online");
+                    setPaymentMethod("MOMO_PREPAID");
+                  }}
+                >
+                  <div
+                    className="payment-icon-circle"
+                    style={{ background: "#dbeafe", color: "#2563eb" }}
+                  >
+                    <i className="fas fa-globe"></i>
+                  </div>
+                  <div>
+                    <div className="payment-name">Thanh toán online</div>
+                    <div className="payment-desc">
+                      Thanh toán trước qua ví điện tử
+                    </div>
+                  </div>
+                  <div className="ms-auto">
+                    <input
+                      type="radio"
+                      className="form-check-input"
+                      checked={paymentCategory === "online"}
+                      onChange={() => {}}
+                    />
+                  </div>
+                </div>
+
+                {/* Online sub-options */}
+                {paymentCategory === "online" && (
+                  <>
+                    <div className="online-methods">
+                      {/* MoMo */}
+                      <div
+                        className={`online-method-card${
+                          paymentMethod === "MOMO_PREPAID" ? " active" : ""
+                        }`}
+                        onClick={() => setPaymentMethod("MOMO_PREPAID")}
+                      >
+                        <div
+                          className="method-icon"
+                          style={{ background: "#d6336c" }}
+                        >
+                          M
+                        </div>
+                        <div className="method-name">MoMo</div>
+                        <div className="method-desc">Ví MoMo</div>
+                      </div>
+
+                      {/* VNPay */}
+                      <div
+                        className={`online-method-card${
+                          paymentMethod === "VNPAY_PREPAID" ? " active" : ""
+                        }`}
+                        onClick={() => setPaymentMethod("VNPAY_PREPAID")}
+                      >
+                        <div
+                          className="method-icon"
+                          style={{ background: "#1e40af" }}
+                        >
+                          V
+                        </div>
+                        <div className="method-name">VNPay</div>
+                        <div className="method-desc">Ví VNPay</div>
+                      </div>
+                    </div>
+
+                    <div className="payment-note">
+                      <i className="fas fa-info-circle"></i>
+                      Bạn sẽ được chuyển đến cổng thanh toán sau khi xác nhận đặt
+                      lịch.
+                    </div>
+                  </>
+                )}
               </div>
+            </div>
+
+            {/* ---------- Form Error ---------- */}
+            {formError && (
+              <div className="bp-alert bp-alert-danger mb-3">
+                <i className="fas fa-exclamation-circle"></i>
+                {formError}
+              </div>
+            )}
+
+            {/* ---------- Action Buttons ---------- */}
+            <div className="bp-actions">
+              <button
+                type="button"
+                className="btn-booking-secondary"
+                onClick={() => navigate(-1)}
+              >
+                <i className="fas fa-arrow-left"></i> Quay lại
+              </button>
+              <button
+                type="button"
+                className="btn-booking-primary"
+                onClick={handleSubmitBooking}
+                disabled={
+                  !selectedPet ||
+                  selectedServices.length === 0 ||
+                  !selectedSlot ||
+                  submitting
+                }
+              >
+                {submitting ? (
+                  <>
+                    <span
+                      className="spinner-border spinner-border-sm"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-calendar-plus"></i> Đặt lịch ngay
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* ==================== RIGHT COLUMN: Summary ==================== */}
+          <div className="col-lg-4">
+            <div className="summary-card">
+              <div className="summary-title">
+                <i className="fas fa-receipt"></i> Tóm tắt lịch hẹn
+              </div>
+
+              {selectedServices.length === 0 &&
+              !selectedPetInfo &&
+              !selectedSlot ? (
+                <div className="summary-empty">
+                  <i className="fas fa-clipboard-list"></i>
+                  <p>Chọn dịch vụ và thời gian để xem tóm tắt lịch hẹn</p>
+                </div>
+              ) : (
+                <>
+                  {/* Pet */}
+                  {selectedPetInfo && (
+                    <div className="summary-item">
+                      <div className="summary-item-label">Thú cưng</div>
+                      <div className="summary-item-value">
+                        <i
+                          className="fas fa-paw"
+                          style={{ color: "#2563eb", marginRight: 6 }}
+                        ></i>
+                        {selectedPetInfo.name}
+                        {getPetTypeName(selectedPetInfo.petTypeId) &&
+                          ` (${getPetTypeName(selectedPetInfo.petTypeId)})`}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Services */}
+                  {selectedServices.length > 0 && (
+                    <div className="summary-item">
+                      <div className="summary-item-label">Dịch vụ</div>
+                      <ul className="summary-service-list">
+                        {selectedServices.map((s) => (
+                          <li key={s.id}>
+                            <span>{s.name}</span>
+                            <span>{s.price.toLocaleString("vi-VN")}đ</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Date & Time */}
+                  {selectedDate && (
+                    <div className="summary-item">
+                      <div className="summary-item-label">Ngày</div>
+                      <div className="summary-item-value">
+                        <i
+                          className="fas fa-calendar-day"
+                          style={{ color: "#2563eb", marginRight: 6 }}
+                        ></i>
+                        {formatDate(selectedDate)}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedSlot && (
+                    <div className="summary-item">
+                      <div className="summary-item-label">Khung giờ</div>
+                      <div className="summary-item-value">
+                        <i
+                          className="fas fa-clock"
+                          style={{ color: "#2563eb", marginRight: 6 }}
+                        ></i>
+                        {formatTime(selectedSlot.startAt)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Duration */}
+                  {totalDuration > 0 && (
+                    <div className="summary-item">
+                      <div className="summary-item-label">Thời lượng</div>
+                      <div className="summary-item-value">
+                        ~{totalDuration} phút
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payment */}
+                  <div className="summary-item">
+                    <div className="summary-item-label">Thanh toán</div>
+                    <div className="summary-item-value">
+                      {paymentCategory === "store"
+                        ? "Tại cửa hàng"
+                        : paymentMethod === "MOMO_PREPAID"
+                          ? "MoMo"
+                          : "VNPay"}
+                    </div>
+                  </div>
+
+                  {/* Total */}
+                  {totalPrice > 0 && (
+                    <div className="summary-total">
+                      <div className="total-label">Tạm tính</div>
+                      <div className="total-amount">
+                        {totalPrice.toLocaleString("vi-VN")}đ
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CTA duplicate */}
+                  <button
+                    type="button"
+                    className="btn-booking-primary mt-3"
+                    style={{ width: "100%" }}
+                    onClick={handleSubmitBooking}
+                    disabled={
+                      !selectedPet ||
+                      selectedServices.length === 0 ||
+                      !selectedSlot ||
+                      submitting
+                    }
+                  >
+                    {submitting ? (
+                      <>
+                        <span
+                          className="spinner-border spinner-border-sm"
+                          role="status"
+                        ></span>
+                        Đang xử lý...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-calendar-plus"></i> Đặt lịch ngay
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Service Selection Modal */}
-      {showServiceModal && (
-        <div
-          className="modal show d-block"
-          tabIndex="-1"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Chọn dịch vụ</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowServiceModal(false)}
-                ></button>
-              </div>
-              <div className="modal-body">
-                {loading ? (
-                  <div className="text-center py-3">
-                    <div className="spinner-border text-primary" role="status">
-                      <span className="visually-hidden">Đang tải...</span>
-                    </div>
-                  </div>
-                ) : error ? (
-                  <div className="alert alert-danger">
-                    {error}
-                    <button
-                      className="btn btn-sm btn-outline-danger ms-3"
-                      onClick={fetchServices}
-                    >
-                      Thử lại
-                    </button>
-                  </div>
-                ) : (
-                  <table className="table table-hover">
-                    <thead>
-                      <tr>
-                        <th>Chọn</th>
-                        <th>Tên dịch vụ</th>
-                        <th>Mô tả</th>
-                        <th>Giá</th>
-                        <th>Thời gian</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {services.map((service) => (
-                        <tr
-                          key={service.id}
-                          onClick={() => toggleServiceSelection(service)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <td>
-                            <input
-                              type="checkbox"
-                              className="form-check-input"
-                              checked={isServiceSelected(service.id)}
-                              onChange={() => toggleServiceSelection(service)}
-                            />
-                          </td>
-                          <td>{service.name}</td>
-                          <td>{service.description}</td>
-                          <td>{service.price.toLocaleString("vi-VN")}đ</td>
-                          <td>{service.durationInMinutes} phút</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowServiceModal(false)}
-                >
-                  Đóng
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => setShowServiceModal(false)}
-                >
-                  Xác nhận ({selectedServices.length} dịch vụ)
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Pet Modal */}
+      {/* ===================== ADD PET MODAL ===================== */}
       {showAddPetModal && (
-        <div
-          className="modal show d-block"
-          tabIndex="-1"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Thêm thú cưng mới</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowAddPetModal(false)}
-                ></button>
-              </div>
-              <form onSubmit={handleAddPet}>
-                <div className="modal-body">
-                  {addPetError && (
-                    <div className="alert alert-danger">{addPetError}</div>
-                  )}
-
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">
-                      Tên thú cưng <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={newPet.name}
-                      onChange={(e) =>
-                        setNewPet({ ...newPet, name: e.target.value })
-                      }
-                      required
-                    />
+        <div className="bp-modal-overlay" onClick={() => setShowAddPetModal(false)}>
+          <div
+            className="bp-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bp-modal-header">
+              <h5>
+                <i className="fas fa-paw"></i> Thêm thú cưng mới
+              </h5>
+              <button
+                className="bp-modal-close"
+                onClick={() => setShowAddPetModal(false)}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <form onSubmit={handleAddPet}>
+              <div className="bp-modal-body">
+                {addPetError && (
+                  <div className="bp-alert bp-alert-danger mb-3">
+                    <i className="fas fa-exclamation-circle"></i> {addPetError}
                   </div>
+                )}
 
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">
-                      Loại thú cưng <span className="text-danger">*</span>
+                <div className="mb-3">
+                  <label className="bp-label">
+                    Tên thú cưng <span className="required">*</span>
+                  </label>
+                  <input
+                    className="bp-input"
+                    placeholder="Ví dụ: Milu, Bông..."
+                    value={newPet.name}
+                    onChange={(e) =>
+                      setNewPet({ ...newPet, name: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="row g-3 mb-3">
+                  <div className="col-6">
+                    <label className="bp-label">
+                      Loại thú cưng <span className="required">*</span>
                     </label>
                     {loadingPetTypes ? (
                       <div className="text-center py-2">
                         <div
                           className="spinner-border spinner-border-sm text-primary"
                           role="status"
-                        >
-                          <span className="visually-hidden">Đang tải...</span>
-                        </div>
+                        ></div>
                       </div>
                     ) : (
                       <select
-                        className="form-select"
+                        className="bp-select"
                         value={newPet.petTypeId}
                         onChange={(e) =>
                           setNewPet({ ...newPet, petTypeId: e.target.value })
                         }
                         required
                       >
-                        <option value="">-- Chọn loại thú cưng --</option>
+                        <option value="">-- Chọn loại --</option>
                         {petTypes.map((type) => (
                           <option key={type.id} value={type.id}>
                             {type.name}
@@ -828,16 +1140,16 @@ const BookingPage = () => {
                       </select>
                     )}
                   </div>
-
-                  <div className="mb-3">
-                    <label className="form-label fw-bold">
-                      Tuổi <span className="text-danger">*</span>
+                  <div className="col-6">
+                    <label className="bp-label">
+                      Tuổi <span className="required">*</span>
                     </label>
                     <input
                       type="number"
-                      className="form-control"
+                      className="bp-input"
                       min="0"
                       max="50"
+                      placeholder="VD: 2"
                       value={newPet.age}
                       onChange={(e) =>
                         setNewPet({ ...newPet, age: e.target.value })
@@ -846,291 +1158,313 @@ const BookingPage = () => {
                     />
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowAddPetModal(false)}
-                    disabled={addingPet}
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={addingPet}
-                  >
-                    {addingPet ? (
-                      <>
-                        <span
-                          className="spinner-border spinner-border-sm me-2"
-                          role="status"
-                          aria-hidden="true"
-                        ></span>
-                        Đang thêm...
-                      </>
-                    ) : (
-                      "Thêm thú cưng"
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Booking Confirmation Modal */}
-      {showConfirmModal && bookingResult && (
-        <div
-          className="modal show d-block"
-          tabIndex="-1"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header bg-success text-white">
-                <h5 className="modal-title">Xác nhận lịch hẹn</h5>
-                <button
-                  type="button"
-                  className="btn-close btn-close-white"
-                  aria-label="Close"
-                  onClick={() => setShowConfirmModal(false)}
-                  disabled={confirming}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="alert alert-warning">
-                  <strong>⏰ Lưu ý:</strong> Hãy xác nhận lịch hẹn của bạn. Hệ
-                  thống sẽ chờ bạn xác nhận trong vòng 5 phút, nếu quá thời gian
-                  lịch hẹn sẽ bị hủy.
-                </div>
-
-                <h5 className="mb-3">Thông tin lịch hẹn</h5>
-
-                <table className="table table-bordered">
-                  <tbody>
-                    <tr>
-                      <th width="40%">Mã booking</th>
-                      <td>
-                        <strong className="text-primary">
-                          {bookingResult.bookingCode}
-                        </strong>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th>Thú cưng</th>
-                      <td>{bookingResult.petName}</td>
-                    </tr>
-                    <tr>
-                      <th>Thời gian bắt đầu</th>
-                      <td>{formatDateTime(bookingResult.scheduledAt)}</td>
-                    </tr>
-                    <tr>
-                      <th>Thời gian kết thúc dự kiến</th>
-                      <td>{formatDateTime(bookingResult.expectedEndTime)}</td>
-                    </tr>
-                    <tr>
-                      <th>Dịch vụ</th>
-                      <td>
-                        <ul className="mb-0">
-                          {bookingResult.services.map((service, index) => (
-                            <li key={index}>
-                              {service.name} -{" "}
-                              {service.price.toLocaleString("vi-VN")}đ
-                            </li>
-                          ))}
-                        </ul>
-                      </td>
-                    </tr>
-                    <tr>
-                      <th>Tổng tiền</th>
-                      <td>
-                        <strong className="text-danger fs-5">
-                          {bookingResult.totalPrice.toLocaleString("vi-VN")}đ
-                        </strong>
-                      </td>
-                    </tr>
-                    {bookingResult.notes && (
-                      <tr>
-                        <th>Ghi chú</th>
-                        <td>{bookingResult.notes}</td>
-                      </tr>
-                    )}
-                    <tr>
-                      <th>Trạng thái</th>
-                      <td>
-                        <span className="badge bg-warning">
-                          {getBookingStatusText(bookingResult.bookingStatus)}
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <div className="mt-3">
-                  <label className="form-label fw-bold">
-                    Phương thức thanh toán <span className="text-danger">*</span>
-                  </label>
-                  <div className="d-flex flex-column gap-2">
-                    <div className="form-check">
-                      <input
-                        className="form-check-input"
-                        type="radio"
-                        name="paymentMethod"
-                        id="pay-momo"
-                        value="MOMO_PREPAID"
-                        checked={paymentMethod === "MOMO_PREPAID"}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                      />
-                      <label className="form-check-label" htmlFor="pay-momo">
-                        MOMO (thanh toán trước)
-                      </label>
-                    </div>
-
-                    <div className="form-check">
-                      <input
-                        className="form-check-input"
-                        type="radio"
-                        name="paymentMethod"
-                        id="pay-vnpay"
-                        value="VNPAY_PREPAID"
-                        checked={paymentMethod === "VNPAY_PREPAID"}
-                        onChange={(e) => setPaymentMethod(e.target.value)}
-                      />
-                      <label className="form-check-label" htmlFor="pay-vnpay">
-                        VNPay (thanh toán trước)
-                      </label>
-                    </div>
-
-                    <div className="form-check">
-                      <input
-                        className="form-check-input"
-                        type="radio"
-                        name="paymentMethod"
-                        id="pay-later"
-                        value="PAY_LATER"
-                        checked={paymentMethod === "PAY_LATER"}
-                        onChange={(e) => {
-                          setPaymentMethod(e.target.value);
-                          setSelectedVoucherCode("");
-                        }}
-                      />
-                      <label className="form-check-label" htmlFor="pay-later">
-                        Thanh toán sau khi hoàn thành dịch vụ
-                      </label>
-                    </div>
+                <div className="row g-3 mb-3">
+                  <div className="col-6">
+                    <label className="bp-label">Giống</label>
+                    <input
+                      className="bp-input"
+                      placeholder="VD: Corgi, Mèo Ba Tư..."
+                      value={newPet.breed}
+                      onChange={(e) =>
+                        setNewPet({ ...newPet, breed: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="col-6">
+                    <label className="bp-label">Cân nặng (kg)</label>
+                    <input
+                      type="number"
+                      className="bp-input"
+                      min="0"
+                      step="0.1"
+                      placeholder="VD: 5.5"
+                      value={newPet.weight}
+                      onChange={(e) =>
+                        setNewPet({ ...newPet, weight: e.target.value })
+                      }
+                    />
                   </div>
                 </div>
-
-                {(paymentMethod === "MOMO_PREPAID" || paymentMethod === "VNPAY_PREPAID") && (
-                  <div className="mt-3">
-                    <label className="form-label fw-bold">Áp dụng voucher</label>
-                    {loadingVouchers ? (
-                      <div className="text-muted">Đang tải voucher...</div>
-                    ) : (
-                      <>
-                        {voucherError && <div className="text-danger small mb-2">{voucherError}</div>}
-                        <select
-                          className="form-select"
-                          value={selectedVoucherCode}
-                          onChange={(e) => setSelectedVoucherCode(e.target.value)}
-                        >
-                          <option value="">Không dùng voucher</option>
-                          {vouchers.map((voucher) => (
-                            <option key={voucher.id} value={voucher.code}>
-                              {voucher.code} - còn {Number(voucher.remainingAmount || 0).toLocaleString("vi-VN")}đ
-                            </option>
-                          ))}
-                        </select>
-                        <div className="mt-2 small text-muted">
-                          <div>
-                            Giảm voucher: <strong>-{voucherDiscountPreview.toLocaleString("vi-VN")}đ</strong>
-                          </div>
-                          <div>
-                            Cần thanh toán: <strong className="text-danger">{payablePreview.toLocaleString("vi-VN")}đ</strong>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
-              <div className="modal-footer">
+
+              <div className="bp-modal-footer">
                 <button
                   type="button"
-                  className="btn btn-outline-secondary"
-                  onClick={() => setShowConfirmModal(false)}
-                  disabled={confirming}
+                  className="btn-booking-secondary"
+                  onClick={() => setShowAddPetModal(false)}
+                  disabled={addingPet}
                 >
-                  Đóng
+                  Hủy
                 </button>
                 <button
-                  type="button"
-                  className="btn btn-success btn-lg"
-                  onClick={handleConfirmBooking}
-                  disabled={confirming}
+                  type="submit"
+                  className="btn-sm-round btn-fill"
+                  disabled={addingPet}
+                  style={{ padding: "0.55rem 1.25rem" }}
                 >
-                  {confirming ? (
+                  {addingPet ? (
                     <>
                       <span
-                        className="spinner-border spinner-border-sm me-2"
+                        className="spinner-border spinner-border-sm me-1"
                         role="status"
-                        aria-hidden="true"
                       ></span>
-                      Đang xác nhận...
+                      Đang thêm...
                     </>
                   ) : (
-                    "Xác nhận & tiếp tục thanh toán"
+                    <>
+                      <i className="fas fa-plus"></i> Thêm thú cưng
+                    </>
                   )}
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================= CONFIRM MODAL ================= */}
+      {showConfirmModal && bookingResult && (
+        <div className="bp-modal-overlay">
+          <div
+            className="bp-modal bp-modal-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bp-modal-header">
+              <h5>
+                <i className="fas fa-clipboard-check"></i> Xác nhận lịch hẹn
+              </h5>
+              <button
+                className="bp-modal-close"
+                onClick={() => setShowConfirmModal(false)}
+                disabled={confirming}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            <div className="bp-modal-body">
+              <div className="bp-alert bp-alert-warning mb-3">
+                <i className="fas fa-clock"></i>
+                <div>
+                  <strong>Lưu ý:</strong> Hệ thống sẽ chờ bạn xác nhận trong
+                  vòng <strong>5 phút</strong>. Nếu quá thời gian, lịch hẹn sẽ bị
+                  hủy.
+                </div>
+              </div>
+
+              <table className="bp-info-table">
+                <tbody>
+                  <tr>
+                    <td className="info-label">Mã booking</td>
+                    <td className="info-value">
+                      <span className="bp-badge bp-badge-primary">
+                        {bookingResult.bookingCode}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="info-label">Thú cưng</td>
+                    <td className="info-value">{bookingResult.petName}</td>
+                  </tr>
+                  <tr>
+                    <td className="info-label">Bắt đầu</td>
+                    <td className="info-value">
+                      {formatDateTime(bookingResult.scheduledAt)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="info-label">Kết thúc dự kiến</td>
+                    <td className="info-value">
+                      {formatDateTime(bookingResult.expectedEndTime)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="info-label">Dịch vụ</td>
+                    <td className="info-value">
+                      <ul
+                        style={{ margin: 0, paddingLeft: "1.1rem" }}
+                      >
+                        {bookingResult.services.map((s, i) => (
+                          <li key={i}>
+                            {s.name} –{" "}
+                            <strong style={{ color: "#2563eb" }}>
+                              {s.price.toLocaleString("vi-VN")}đ
+                            </strong>
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="info-label">Tổng tiền</td>
+                    <td className="info-value">
+                      <span
+                        style={{
+                          fontSize: "1.15rem",
+                          fontWeight: 800,
+                          color: "#dc2626",
+                        }}
+                      >
+                        {bookingResult.totalPrice.toLocaleString("vi-VN")}đ
+                      </span>
+                    </td>
+                  </tr>
+                  {bookingResult.notes && (
+                    <tr>
+                      <td className="info-label">Ghi chú</td>
+                      <td className="info-value">{bookingResult.notes}</td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td className="info-label">Thanh toán</td>
+                    <td className="info-value">
+                      {paymentCategory === "store"
+                        ? "Tại cửa hàng"
+                        : paymentMethod === "MOMO_PREPAID"
+                          ? "MoMo (online)"
+                          : "VNPay (online)"}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="info-label">Trạng thái</td>
+                    <td className="info-value">
+                      <span className="bp-badge bp-badge-warning">
+                        {getBookingStatusText(bookingResult.bookingStatus)}
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* Voucher (only for online payment) */}
+              {paymentCategory === "online" && (
+                <div style={{ marginTop: "1rem" }}>
+                  <label className="bp-label">
+                    <i className="fas fa-ticket-alt" style={{ color: "#2563eb" }}></i>{" "}
+                    Áp dụng voucher
+                  </label>
+                  {loadingVouchers ? (
+                    <div className="text-muted" style={{ fontSize: "0.85rem" }}>
+                      <span className="spinner-border spinner-border-sm me-1"></span>
+                      Đang tải voucher...
+                    </div>
+                  ) : (
+                    <>
+                      {voucherError && (
+                        <div
+                          className="text-danger"
+                          style={{ fontSize: "0.82rem", marginBottom: "0.35rem" }}
+                        >
+                          {voucherError}
+                        </div>
+                      )}
+                      <select
+                        className="bp-voucher-select"
+                        value={selectedVoucherCode}
+                        onChange={(e) =>
+                          setSelectedVoucherCode(e.target.value)
+                        }
+                      >
+                        <option value="">Không dùng voucher</option>
+                        {vouchers.map((v) => (
+                          <option key={v.id} value={v.code}>
+                            {v.code} – còn{" "}
+                            {Number(v.remainingAmount || 0).toLocaleString(
+                              "vi-VN",
+                            )}
+                            đ
+                          </option>
+                        ))}
+                      </select>
+                      {selectedVoucherCode && (
+                        <div
+                          style={{
+                            marginTop: "0.5rem",
+                            fontSize: "0.85rem",
+                            color: "#475569",
+                          }}
+                        >
+                          Giảm voucher:{" "}
+                          <strong style={{ color: "#10b981" }}>
+                            -{voucherDiscountPreview.toLocaleString("vi-VN")}đ
+                          </strong>
+                          <br />
+                          Cần thanh toán:{" "}
+                          <strong style={{ color: "#dc2626" }}>
+                            {payablePreview.toLocaleString("vi-VN")}đ
+                          </strong>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="bp-modal-footer">
+              <button
+                type="button"
+                className="btn-booking-secondary"
+                onClick={() => setShowConfirmModal(false)}
+                disabled={confirming}
+              >
+                Đóng
+              </button>
+              <button
+                type="button"
+                className="btn-booking-primary"
+                style={{ flex: "none", width: "auto" }}
+                onClick={handleConfirmBooking}
+                disabled={confirming}
+              >
+                {confirming ? (
+                  <>
+                    <span
+                      className="spinner-border spinner-border-sm"
+                      role="status"
+                    ></span>
+                    Đang xác nhận...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-check"></i> Xác nhận &amp; thanh toán
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Success Modal */}
+      {/* ================= SUCCESS MODAL ================= */}
       {showSuccessModal && bookingResult && (
-        <div
-          className="modal show d-block"
-          tabIndex="-1"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-        >
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-body text-center py-5">
-                <div className="mb-4">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="80"
-                    height="80"
-                    fill="currentColor"
-                    className="bi bi-check-circle text-success"
-                    viewBox="0 0 16 16"
-                  >
-                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
-                    <path d="m10.97 4.97-.02.022-3.473 4.425-2.093-2.094a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05" />
-                  </svg>
-                </div>
-                <h4 className="mb-3">Đặt lịch thành công!</h4>
-                <p className="text-muted mb-1">Mã booking của bạn:</p>
-                <h5 className="text-primary mb-4">
-                  {bookingResult.bookingCode}
-                </h5>
-                <p className="text-muted">
-                  Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi.
-                </p>
+        <div className="bp-modal-overlay">
+          <div className="bp-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="bp-modal-body text-center" style={{ padding: "2.5rem 1.5rem" }}>
+              <div className="bp-success-icon">
+                <i className="fas fa-check"></i>
               </div>
-              <div className="modal-footer justify-content-center">
-                <button
-                  type="button"
-                  className="btn btn-primary px-4"
-                  onClick={handleSuccessOk}
-                >
-                  OK
-                </button>
-              </div>
+              <h4 style={{ color: "#1e3a5f", fontWeight: 700 }}>
+                Đặt lịch thành công!
+              </h4>
+              <p style={{ color: "#64748b", margin: "0.5rem 0 0.25rem" }}>
+                Mã booking của bạn:
+              </p>
+              <h5 style={{ color: "#2563eb", fontWeight: 700 }}>
+                {bookingResult.bookingCode}
+              </h5>
+              <p style={{ color: "#94a3b8", marginTop: "1rem" }}>
+                Cảm ơn bạn đã sử dụng dịch vụ của chúng tôi.
+              </p>
+            </div>
+            <div className="bp-modal-footer" style={{ justifyContent: "center" }}>
+              <button
+                type="button"
+                className="btn-sm-round btn-fill"
+                style={{ padding: "0.6rem 2rem" }}
+                onClick={handleSuccessOk}
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>
