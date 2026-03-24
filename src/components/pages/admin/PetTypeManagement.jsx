@@ -73,7 +73,7 @@ const PetTypeManagement = () => {
                 params.append('Search', search);
             }
 
-            const response = await fetch(`https://localhost:7111/api/PetTypeManage/paginated?${params}`, {
+            const response = await fetch(`http://localhost:8080/api/pet-type/paginated?${params}`, {
                 credentials: 'include'
             });
 
@@ -123,7 +123,7 @@ const PetTypeManagement = () => {
 
     const handleView = async (id) => {
         try {
-            const response = await fetch(`https://localhost:7111/api/PetTypeManage/${id}`, {
+            const response = await fetch(`http://localhost:8080/api/pet-type/${id}`, {
                 credentials: 'include'
             });
 
@@ -167,7 +167,7 @@ const PetTypeManagement = () => {
             let response;
 
             if (editingPetType) {
-                response = await fetch(`https://localhost:7111/api/PetTypeManage`, {
+                response = await fetch(`http://localhost:8080/api/pet-type`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -176,7 +176,7 @@ const PetTypeManagement = () => {
                     body: JSON.stringify(formData)
                 });
             } else {
-                response = await fetch(`https://localhost:7111/api/PetTypeManage`, {
+                response = await fetch(`http://localhost:8080/api/pet-type`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -202,17 +202,17 @@ const PetTypeManagement = () => {
     };
 
     // ===== TOGGLE ACTIVE/INACTIVE =====
-    const handleToggleActive = (id, currentStatus) => {
-        const action = currentStatus ? 'vô hiệu hóa' : 'kích hoạt';
+    const handleToggleActive = (petType) => {
+        const action = petType.isActive ? 'vô hiệu hóa' : 'kích hoạt';
 
         showConfirm(
             `Bạn có chắc muốn ${action} loại thú cưng này?`,
             async () => {
                 try {
                     // Gọi API tương ứng
-                    const endpoint = currentStatus
-                        ? `https://localhost:7111/api/PetTypeManage/soft-delete?id=${id}`
-                        : `https://localhost:7111/api/PetTypeManage/active?id=${id}`;
+                    const endpoint = petType.isActive
+                        ? `http://localhost:8080/api/pet-type/soft-delete?id=${petType.id}`
+                        : `http://localhost:8080/api/pet-type/active?id=${petType.id}`;
 
                     const response = await fetch(endpoint, {
                         method: 'PATCH',
@@ -420,8 +420,8 @@ const PetTypeManagement = () => {
                                                         <i className="fas fa-edit"></i>
                                                     </button>
                                                     <button
-                                                        className={`btn btn-sm ${petType.isActive ? 'btn-secondary' : 'btn-success'}`}
-                                                        onClick={() => handleToggleActive(petType.id, petType.isActive)}
+                                                        className={`btn btn-sm ${petType.isActive ? 'btn-danger' : 'btn-success'}`}
+                                                        onClick={() => handleToggleActive(petType)}
                                                         title={petType.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'}
                                                     >
                                                         <i className={`fas fa-${petType.isActive ? 'ban' : 'check'}`}></i>
