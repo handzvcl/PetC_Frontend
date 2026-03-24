@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
+import "./Layout.css";
 
 function Header() {
     const { isAuth, logout } = useAuth();
@@ -11,23 +12,24 @@ function Header() {
     };
 
     return (
-        <nav className="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
-            <div className="container-fluid">
+        <nav className="navbar navbar-expand-md navbar-dark bg-dark fixed-top pet-main-navbar">
+            <div className="container navbar-container">
                 <NavLink className="navbar-brand" to="/">
-                    EngExam
+                    Pawfect<span className="brand-dot">.</span>
                 </NavLink>
                 <button
                     className="navbar-toggler"
                     type="button"
                     data-bs-toggle="collapse"
                     data-bs-target="#mainNavbar"
+                    aria-controls="mainNavbar"
+                    aria-expanded="false"
+                    aria-label="Toggle navigation"
                 >
                     <span className="navbar-toggler-icon"></span>
                 </button>
 
-                {/* 🔥 COLLAPSE PHẢI CÓ ID */}
                 <div className="collapse navbar-collapse" id="mainNavbar">
-                    {/* LEFT */}
                     <ul className="navbar-nav me-auto">
                         <li className="nav-item">
                             <NavLink to="/" className="nav-link">
@@ -65,7 +67,11 @@ function Header() {
                         )}
                     </ul>
 
-                    {/* RIGHT */}
+                    <a className="pet-phone-link" href="tel:+16588472587">
+                        <i className="fas fa-phone"></i>
+                        +095.555.5432
+                    </a>
+
                     <ul className="navbar-nav ms-auto">
                         {!isAuth ? (
                             <>
@@ -81,17 +87,19 @@ function Header() {
                                 </li>
                             </>
                         ) : (
-                            <li className="nav-item dropdown">
+                            <li className="nav-item dropdown pet-auth-dropdown">
                                 <a
                                     className="nav-link dropdown-toggle"
                                     href="#"
                                     data-bs-toggle="dropdown"
+                                    aria-expanded="false"
                                 >
                                     <img
                                         src="https://ui-avatars.com/api/?name=User"
-                                        className="rounded-circle"
+                                        className="rounded-circle pet-avatar"
                                         width="20"
                                         height="20"
+                                        alt="User avatar"
                                     />
                                 </a>
                                 <ul className="dropdown-menu dropdown-menu-end">
