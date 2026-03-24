@@ -21,6 +21,7 @@ import StaffManagement from './components/pages/admin/StaffManagement';
 import ServiceManagement from './components/pages/admin/ServiceManagement';
 import BookingManagement from './components/pages/admin/BookingManagement';
 import RevenueManagement from './components/pages/admin/RevenueManagement';
+import UserManagement from './components/pages/admin/UserManagement';
 import StatisticManagement from './components/pages/admin/StatisticManagement';
 function About() {
     return <h1>About Page</h1>;
@@ -118,6 +119,7 @@ function App() {
                     }>
                         <Route index element={<AdminDashboard />} />
                         <Route path="bookings" element={<BookingManagement />} />
+                        <Route path="users" element={<UserManagement />} />
                         <Route path="services" element={<ServiceManagement/>} />
                         <Route path="pet-types" element={<PetTypeManagement />} />
                         <Route path="staff" element={<StaffManagement />} />

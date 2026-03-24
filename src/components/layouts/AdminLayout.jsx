@@ -76,7 +76,13 @@ const AdminLayout = () => {
                                     <div className="sb-nav-link-icon"><i className="fas fa-calendar-check"></i></div>
                                     Quản lý Booking
                                 </NavLink>
-
+                                <NavLink
+                                    to="/admin/users"
+                                    className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                                >
+                                    <div className="sb-nav-link-icon"><i className="fas fa-users-cog"></i></div>
+                                    Quản lý quyền tài khoản
+                                </NavLink>
                                 <NavLink
                                     to="/admin/services"
                                     className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
