@@ -141,7 +141,6 @@ function App() {
                         <Route path="pet-types" element={<PetTypeManagement />} />
                         <Route path="staff" element={<StaffManagement />} />
                         <Route path="revenue" element={<RevenueManagement />} />
-                        <Route path="reports" element={<div>Báo cáo</div>} />
                         <Route path="articles" element={<ArticleManagement />} />
                         <Route path="reports" element={<StatisticManagement />} />
                     </Route>
