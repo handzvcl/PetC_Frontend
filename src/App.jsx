@@ -25,6 +25,7 @@ import UserManagement from './components/pages/admin/UserManagement';
 import ArticleManagement from './components/pages/admin/ArticleManagement';
 import ArticleList from './components/pages/ArticleList'; 
 import ArticleDetail from './components/pages/ArticleDetail';
+import StatisticManagement from './components/pages/admin/StatisticManagement';
 function About() {
     return <h1>About Page</h1>;
 }
@@ -142,6 +143,7 @@ function App() {
                         <Route path="revenue" element={<RevenueManagement />} />
                         <Route path="reports" element={<div>Báo cáo</div>} />
                         <Route path="articles" element={<ArticleManagement />} />
+                        <Route path="reports" element={<StatisticManagement />} />
                     </Route>
                 </Routes>
             </BrowserRouter>
