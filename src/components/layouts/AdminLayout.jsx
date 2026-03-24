@@ -109,10 +109,17 @@ const AdminLayout = () => {
                                 <div className="sb-sidenav-menu-heading">Báo cáo</div>
 
                                 <NavLink
+                                    to="/admin/reports"
+                                    className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                                >
+                                    <div className="sb-nav-link-icon"><i className="fas fa-chart-line"></i></div>
+                                    Thống Kê Dịch Vụ
+                                </NavLink>
+                                <NavLink
                                     to="/admin/revenue"
                                     className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
                                 >
-                                    <div className="sb-nav-link-icon"><i className="fas fa-chart-bar"></i></div>
+                                    <div className="sb-nav-link-icon"><i className="fas fa-money-bill-wave"></i></div>
                                     Doanh thu
                                 </NavLink>
 
