@@ -4,6 +4,13 @@ import { Link } from 'react-router-dom';
 const ArticleList = () => {
     const [articles, setArticles] = useState([]);
     const [loading, setLoading] = useState(true);
+    const BACKEND_URL = 'http://localhost:8080';
+
+    const resolveImageUrl = (url) => {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        return `${BACKEND_URL}${url.startsWith('/') ? url : `/${url}`}`;
+    };
 
     useEffect(() => {
         const fetchArticles = async () => {
@@ -54,7 +61,7 @@ const ArticleList = () => {
                                     <div className="mb-3 rounded overflow-hidden" style={{ height: '180px', backgroundColor: '#f8f9fa' }}>
                                         {article.imageUrl ? (
                                             <img 
-                                                src={article.imageUrl} 
+                                                src={resolveImageUrl(article.imageUrl)} 
                                                 alt={article.title} 
                                                 className="w-100 h-100" 
                                                 style={{ objectFit: 'cover' }}

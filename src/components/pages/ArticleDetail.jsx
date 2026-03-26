@@ -119,6 +119,13 @@ const ArticleDetail = () => {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState(null);
+    const BACKEND_URL = 'http://localhost:8080';
+
+    const resolveImageUrl = (url) => {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        return `${BACKEND_URL}${url.startsWith('/') ? url : `/${url}`}`;
+    };
 
     useEffect(() => {
         const fetchArticleDetail = async () => {
@@ -243,7 +250,7 @@ const ArticleDetail = () => {
                             {article.imageUrl && (
                                 <div className="mb-4 text-center">
                                     <img 
-                                        src={article.imageUrl} 
+                                        src={resolveImageUrl(article.imageUrl)} 
                                         alt={article.title} 
                                         className="img-fluid rounded" 
                                         style={{ maxHeight: '450px', width: '100%', objectFit: 'cover' }}

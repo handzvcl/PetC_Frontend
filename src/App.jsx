@@ -23,8 +23,12 @@ import BookingManagement from './components/pages/admin/BookingManagement';
 import RevenueManagement from './components/pages/admin/RevenueManagement';
 import StatisticManagement from './components/pages/admin/StatisticManagement';
 import PetCareHistoryManagement from './components/pages/admin/PetCareHistoryManagement';
+import UserManagement from './components/pages/admin/UserManagement';
 import MyPetsPage from './components/pages/MyPetsPage';
 import ProfilePage from './components/pages/ProfilePage';
+import ArticleList from './components/pages/ArticleList';
+import ArticleDetail from "./components/pages/ArticleDetail";
+import ArticleManagement from './components/pages/admin/ArticleManagement';
 
 function About() {
   return <h1>About Page</h1>;
@@ -46,6 +50,26 @@ function App() {
               <>
                 <Header />
                 <HomePage />
+                <Footer />
+              </>
+            }
+          />
+<Route
+            path="/articles"
+            element={
+              <>
+                <Header />
+                <ArticleList />
+                <Footer />
+              </>
+            }
+          />
+          <Route
+            path="/articles/:id"
+            element={
+              <>
+                <Header />
+                <ArticleDetail />
                 <Footer />
               </>
             }
@@ -176,6 +200,7 @@ function App() {
           >
             <Route index element={<AdminDashboard />} />
             <Route path="bookings" element={<BookingManagement />} />
+            <Route path="users" element={<UserManagement />} />
             <Route path="services" element={<ServiceManagement />} />
             <Route path="pet-types" element={<PetTypeManagement />} />
             <Route path="my-pets" element={<MyPetsPage />} />
@@ -183,6 +208,7 @@ function App() {
             <Route path="staff" element={<StaffManagement />} />
             <Route path="revenue" element={<RevenueManagement />} />
             <Route path="reports" element={<StatisticManagement />} />
+            <Route path="articles" element={<ArticleManagement />} />
           </Route>
         </Routes>
       </BrowserRouter>

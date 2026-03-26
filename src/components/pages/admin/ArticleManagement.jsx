@@ -21,6 +21,12 @@ const ArticleManagement = () => {
 
     const BACKEND_URL = 'http://localhost:8080'; 
 
+    const resolveImageUrl = (url) => {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        return `${BACKEND_URL}${url.startsWith('/') ? url : `/${url}`}`;
+    };
+
     const showToast = (message, type = 'success') => {
         setToast({ show: true, message, type });
         setTimeout(() => setToast({ show: false, message: '', type: '' }), 3000);
@@ -62,7 +68,7 @@ const ArticleManagement = () => {
             const result = await response.json();
             
             if (response.ok && result.success) {
-                setImageUrl(`${BACKEND_URL}${result.data}`);
+                setImageUrl(resolveImageUrl(result.data));
                 showToast('Tải ảnh bìa thành công!', 'success');
             } else {
                 throw new Error(result.message || 'Lỗi tải ảnh');
@@ -93,7 +99,7 @@ const ArticleManagement = () => {
         setTitle(article.title || '');
         setSummary(article.summary || '');
         setContent(article.content || '');
-        setImageUrl(article.imageUrl || '');
+        setImageUrl(resolveImageUrl(article.imageUrl || ''));
         setIsPublished(article.published !== undefined ? article.published : article.isPublished); 
         setShowModal(true);
     };
@@ -213,7 +219,7 @@ const ArticleManagement = () => {
                                                     <td className="text-center fw-bold">{article.id}</td>
                                                     <td className="text-center">
                                                         {article.imageUrl ? (
-                                                            <img src={article.imageUrl} alt="cover" className="img-thumbnail shadow-sm" style={{ height: '70px', width: '100px', objectFit: 'cover' }} />
+                                                            <img src={resolveImageUrl(article.imageUrl)} alt="cover" className="img-thumbnail shadow-sm" style={{ height: '70px', width: '100px', objectFit: 'cover' }} />
                                                         ) : (
                                                             <span className="text-muted small">Không có ảnh</span>
                                                         )}

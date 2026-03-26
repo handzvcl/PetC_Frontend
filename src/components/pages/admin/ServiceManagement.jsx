@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 const ServiceManagement = () => {
+  const BACKEND_URL = "http://localhost:8080";
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -31,6 +32,12 @@ const ServiceManagement = () => {
     durationInMinutes: "",
     imageUrl: "",
   });
+
+  const resolveImageUrl = (url) => {
+    if (!url) return "";
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    return `${BACKEND_URL}${url.startsWith("/") ? url : `/${url}`}`;
+  };
 
   // Show toast notification
   const showToast = (message, type = "success") => {
@@ -79,7 +86,7 @@ const ServiceManagement = () => {
       }
 
       const response = await fetch(
-        `http://localhost:8080/api/services/paginated?${params}`,
+        `${BACKEND_URL}/api/services/paginated?${params}`,
         {
           credentials: "include",
         },
@@ -139,7 +146,7 @@ const ServiceManagement = () => {
 
   const handleView = async (id) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/services/${id}`, {
+      const response = await fetch(`${BACKEND_URL}/api/services/${id}`, {
         credentials: "include",
       });
 
@@ -171,9 +178,7 @@ const ServiceManagement = () => {
       isActive: service.isActive !== undefined ? service.isActive : true,
     });
 
-    setImagePreview(
-      service.imageUrl ? `http://localhost:8080${service.imageUrl}` : null,
-    );
+    setImagePreview(service.imageUrl ? resolveImageUrl(service.imageUrl) : null);
     setShowModal(true);
   };
 
@@ -207,7 +212,7 @@ const ServiceManagement = () => {
       const formDataUpload = new FormData();
       formDataUpload.append("file", file);
 
-      const response = await fetch("http://localhost:8080/api/upload", {
+      const response = await fetch(`${BACKEND_URL}/api/upload`, {
         method: "POST",
         credentials: "include",
         body: formDataUpload,
@@ -221,7 +226,7 @@ const ServiceManagement = () => {
           imageUrl: result.data,
         }));
 
-        setImagePreview(`http://localhost:8080${result.data}`);
+        setImagePreview(resolveImageUrl(result.data));
         showToast("Tải ảnh lên thành công!", "success");
       } else {
         const errorMessage = result.errors
@@ -269,7 +274,7 @@ const ServiceManagement = () => {
       };
 
       if (editingService) {
-        response = await fetch(`http://localhost:8080/api/services`, {
+        response = await fetch(`${BACKEND_URL}/api/services`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -278,7 +283,7 @@ const ServiceManagement = () => {
           body: JSON.stringify(submitData),
         });
       } else {
-        response = await fetch(`http://localhost:8080/api/services`, {
+        response = await fetch(`${BACKEND_URL}/api/services`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -310,7 +315,7 @@ const ServiceManagement = () => {
     showConfirm(message, async () => {
       try {
         const response = await fetch(
-          `http://localhost:8080/api/services/toggle-active?id=${service.id}`,
+          `${BACKEND_URL}/api/services/toggle-active?id=${service.id}`,
           {
             method: "PATCH",
             credentials: "include",
@@ -536,7 +541,7 @@ const ServiceManagement = () => {
                         <td className="text-center">
                           {service.imageUrl ? (
                             <img
-                              src={`http://localhost:8080${service.imageUrl}`}
+                              src={resolveImageUrl(service.imageUrl)}
                               alt={service.name}
                               className="rounded"
                               style={{
@@ -936,7 +941,7 @@ const ServiceManagement = () => {
                   {viewingService.imageUrl && (
                     <div className="col-md-4 mb-3">
                       <img
-                        src={`http://localhost:8080${viewingService.imageUrl}`}
+                        src={resolveImageUrl(viewingService.imageUrl)}
                         alt={viewingService.name}
                         className="rounded w-100"
                         style={{ height: "250px", objectFit: "cover" }}
