@@ -15,6 +15,11 @@ export default defineConfig({
                 changeOrigin: true,
                 secure: false,
             },
+            '/uploads': {
+                target: 'http://localhost:8080',
+                changeOrigin: true,
+                secure: false,
+            },
         },
         port: 5173,
         strictPort: true,

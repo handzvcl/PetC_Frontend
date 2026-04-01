@@ -51,7 +51,7 @@ const MyPetsPage = () => {
     setHistoryList([]);
     setLoadingHistory(true);
     try {
-      const res = await fetch(`${API_BASE}/bookings?petId=${pet.id}`, {
+      const res = await fetch(`${API_BASE}/bookings/by-pet/${pet.id}`, {
         credentials: "include",
       });
       const result = await res.json().catch(() => null);
